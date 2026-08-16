@@ -12,6 +12,9 @@ Version 2.2.1 focuses on deliverability, safer tracking, administrator testing, 
 
 - Send HTML email campaigns to Geeklog user groups.
 - Build automated digests from recently published stories.
+- Keep digest tracking and deliverability simple with exactly one promotional link per article: the final read-article call-to-action. Titles are plain text and links embedded in excerpts are removed while visible content is preserved.
+- Normalize digest images for email clients by removing fixed width/height values and applying responsive `max-width:100%` styling, preventing blocked remote images from reserving an oversized layout box.
+- Use the canonical `article.php?story=<sid>` article URL in digest links so they work even when Geeklog URL rewriting and URL routing are disabled.
 - Personalize messages with user information.
 - Queue bulk email instead of sending an entire campaign in one request.
 - Process queued recipients by ascending UID so low-UID administrative accounts are reached early.
@@ -45,7 +48,7 @@ Older tracked links embedded a Base64-encoded destination URL. New campaigns use
 
 This produces cleaner first-party links and prevents newly generated tracked links from acting as arbitrary open redirectors.
 
-Transitional support remains for links already sent by Hello 2.2.0, but the legacy destination is accepted only when it points to the same site.
+Transitional support remains for links already sent by Hello 2.2.0. Legacy Base64 links can still redirect to external destinations when the URL is found in the stored content of the referenced historical campaign. Same-site destinations remain accepted as a conservative fallback, preserving old emails without restoring an arbitrary open redirect.
 
 ### HTML and plain-text alternatives
 
@@ -85,6 +88,8 @@ The test message includes an active **Unsubscribe (Test)** / **Se désinscrire (
 6. review the simulated resubscribe success message.
 
 Test mode does **not** change `emailfromadmin`, subscriber preferences or unsubscribe statistics.
+
+Test emails also exercise the real `track.php` and `click.php` endpoints. Open and click events are stored only as isolated administrator test markers, never in campaign statistics. Digest tests and campaign tests have separate status panels: send a test, open it, click a normal tracked link, then reload the relevant Hello administration page to confirm both trackers.
 
 ## Queue and throttling
 

@@ -46,6 +46,8 @@ $token = isset($_GET['t']) ? strtolower(trim($_GET['t'])) : '';
 $url = '';
 $uid = 0;
 $hello_id = 0;
+$test_mode = isset($_GET['test']) && (int) $_GET['test'] === 1;
+$test_context = isset($_GET['k']) && $_GET['k'] === 'digest' ? 'digest' : 'campaign';
 
 if (preg_match('/^[a-f0-9]{32}$/', $token)) {
     $safe_token = DB_escapeString($token);
@@ -68,37 +70,73 @@ if ($url === '' && isset($_GET['url'], $_GET['u'], $_GET['h'])) {
     $legacy_uid = (int) $_GET['u'];
     $legacy_hello_id = (int) $_GET['h'];
 
-    if ($legacy !== false && filter_var($legacy, FILTER_VALIDATE_URL)) {
+    if ($legacy !== false && filter_var($legacy, FILTER_VALIDATE_URL)
+        && $legacy_uid > 1 && $legacy_hello_id > 0) {
         $legacy_scheme = strtolower((string) parse_url($legacy, PHP_URL_SCHEME));
-        $legacy_host = strtolower((string) parse_url($legacy, PHP_URL_HOST));
-        $site_host = strtolower((string) parse_url($_CONF['site_url'], PHP_URL_HOST));
 
-        if (($legacy_scheme === 'http' || $legacy_scheme === 'https')
-            && $legacy_host !== '' && $legacy_host === $site_host) {
-            $url = $legacy;
-            $uid = $legacy_uid;
-            $hello_id = $legacy_hello_id;
+        if ($legacy_scheme === 'http' || $legacy_scheme === 'https') {
+            $legacy_allowed = false;
+
+            // Preserve historical external links only when the destination can
+            // be verified against the stored campaign content.
+            $campaign_content = DB_getItem(
+                $_TABLES['hello'],
+                'content',
+                'hello_id = ' . $legacy_hello_id
+            );
+
+            if (!empty($campaign_content)) {
+                $decoded_legacy = html_entity_decode($legacy, ENT_QUOTES, 'UTF-8');
+                $decoded_content = html_entity_decode(
+                    stripslashes((string) $campaign_content),
+                    ENT_QUOTES,
+                    'UTF-8'
+                );
+
+                if (strpos($decoded_content, $decoded_legacy) !== false) {
+                    $legacy_allowed = true;
+                }
+            }
+
+            // Same-site links remain accepted as a conservative fallback for
+            // old campaigns whose stored content is unavailable/incomplete.
+            if (!$legacy_allowed) {
+                $legacy_host = strtolower((string) parse_url($legacy, PHP_URL_HOST));
+                $site_host = strtolower((string) parse_url($_CONF['site_url'], PHP_URL_HOST));
+
+                if ($legacy_host !== '' && $legacy_host === $site_host) {
+                    $legacy_allowed = true;
+                }
+            }
+
+            if ($legacy_allowed) {
+                $url = $legacy;
+                $uid = $legacy_uid;
+                $hello_id = $legacy_hello_id;
+            }
         }
     }
 }
 
-if ($url !== '' && $uid > 1 && $hello_id > 0) {
-    $safe_url = DB_escapeString($url);
-    $click_time = date('Y-m-d H:i:s');
+if ($url !== '' && $uid > 1) {
+    if ($test_mode && $hello_id === 0) {
+        HELLO_recordTestTracking($uid, $test_context, 'click');
+    } else if (!$test_mode && $hello_id > 0) {
+        $safe_url = DB_escapeString($url);
+        $click_time = date('Y-m-d H:i:s');
 
-    $check_click = DB_query("SELECT click_id FROM {$_TABLES['hello_urls_clicked']} "
-        . "WHERE hello_id = $hello_id AND uid = $uid AND url = '$safe_url'");
-    if (DB_numRows($check_click) == 0) {
-        DB_query("INSERT INTO {$_TABLES['hello_urls_clicked']} "
-            . "(hello_id, uid, url, click_time) VALUES "
-            . "($hello_id, $uid, '$safe_url', '$click_time')");
-    }
+        $check_click = DB_query("SELECT click_id FROM {$_TABLES['hello_urls_clicked']} "
+            . "WHERE hello_id = $hello_id AND uid = $uid AND url = '$safe_url'");
+        if (DB_numRows($check_click) == 0) {
+            DB_query("INSERT INTO {$_TABLES['hello_urls_clicked']} "
+                . "(hello_id, uid, url, click_time) VALUES "
+                . "($hello_id, $uid, '$safe_url', '$click_time')");
+        }
 
-    // A click is strong evidence of engagement. Keep this fallback only when
-    // open tracking is enabled.
-    if (!isset($_HE_CONF['track_opens']) || (bool) $_HE_CONF['track_opens']) {
-        DB_query("INSERT INTO {$_TABLES['hello_stats']} (hello_id, uid, opened) "
-            . "VALUES ($hello_id, $uid, 1) ON DUPLICATE KEY UPDATE opened = 1");
+        if (!isset($_HE_CONF['track_opens']) || (bool) $_HE_CONF['track_opens']) {
+            DB_query("INSERT INTO {$_TABLES['hello_stats']} (hello_id, uid, opened) "
+                . "VALUES ($hello_id, $uid, 1) ON DUPLICATE KEY UPDATE opened = 1");
+        }
     }
 }
 

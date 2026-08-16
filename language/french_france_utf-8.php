@@ -151,7 +151,7 @@ $LANG_HELLO01 = array(
     'uninstall_failed_msg'    => 'La désinstallation du plugin Manual Digest a échoué. Merci de consulter le ficheir error.log pour plus d\'informations.',
 
     'digest_sent'             => 'La notification a bien été expédiée. <a href="' . $_CONF['site_admin_url'] . '/plugins/hello/index.php">Retour à l\'interface d\'administration</a>.',
-    'digest_intro_email'      => 'Bonjour %s. Voici les derniers articles publiés sur le site %s.',
+    'digest_intro_email'        => 'Bonjour %s. Voici les derniers articles publiés sur le site %s.',
     'digest_intro'            => 'Cette fonction vous permet d\'informer les membres de votre site de la publication d\'un nouvel article. Elle est indépendante de la fonction automatisée par cronjob et vous permet d\'expédier une notification supplémentaire lorsque vous le souhaitez. Cliquez sur le bouton "Envoyer" ci-dessous (disponible uniquement si vous avez de nouveaux articles à signaler) pour expédier l\'avis de parution d\'un nouvel article aux membres qui le souhaitent.',
     'digest_last_sent'        => 'Dernière notification expédiée :',
     'never'                   => '(Jamais)',
@@ -182,6 +182,8 @@ $LANG_HELLO01 = array(
     'forums'                  => 'Forums',
     'no_forums'               => 'Aucun',
     'forum_topics'            => 'sujets dans le forum',
+    
+    // Page Instructions
     'inst_index'              => 'Gérer l\'envoi manuel du résumé des articles récents et rechercher des membres. La documentation complète du plugin se trouve au bas de cette page.',
     'inst_group'              => 'Rédigez et envoyez une nouvelle campagne d\'emails ciblée à un groupe d\'utilisateurs.',
     'inst_read'               => 'Consultez vos archives de campagnes et accédez aux statistiques détaillées.',
@@ -202,10 +204,10 @@ $LANG_HELLO01 = array(
     'invalid_link_msg'        => 'Lien de désinscription invalide ou expiré.',
     'test_email_success'      => 'E-mail de test envoyé avec succès',
     'test_email_footer'       => 'MESSAGE DE TEST — Le lien de désinscription ci-dessous est une simulation. Vous pouvez tester tout le parcours sans modifier les préférences d’aucun abonné.',
-    'unsubscribe_test'        => 'Se désinscrire (Test)',
-    'unsub_test_warning'      => 'MODE TEST — Il s’agit d’une simulation de désinscription. La confirmation ne modifiera ni votre abonnement ni vos préférences d’e-mail.',
-    'unsub_test_success'      => 'MODE TEST — Le parcours de désinscription a été testé avec succès, mais aucun abonnement ni aucune préférence d’e-mail n’a été modifié.',
-    'resub_test_success'      => 'MODE TEST — Le parcours de réinscription a été testé avec succès, mais aucun abonnement ni aucune préférence d’e-mail n’a été modifié.',
+    'unsubscribe_test'         => 'Se désinscrire (Test)',
+    'unsub_test_warning'       => 'MODE TEST — Il s’agit d’une simulation de désinscription. La confirmation ne modifiera ni votre abonnement ni vos préférences d’e-mail.',
+    'unsub_test_success'       => 'MODE TEST — Le parcours de désinscription a été testé avec succès, mais aucun abonnement ni aucune préférence d’e-mail n’a été modifié.',
+    'resub_test_success'       => 'MODE TEST — Le parcours de réinscription a été testé avec succès, mais aucun abonnement ni aucune préférence d’e-mail n’a été modifié.',
     'test_email_failed'       => 'L’e-mail de test n’a pas pu être envoyé. Vérifiez le journal d’erreurs de Geeklog et la configuration de la messagerie.',
     'manual_paused_note'      => 'Note : %d e-mails supplémentaires sont en pause ou programmés pour plus tard et ne seront pas envoyés maintenant.',
     'crm_unique_clicks'       => 'clic(s) unique(s) sur : ',
@@ -239,9 +241,20 @@ $LANG_HELLO01 = array(
     'crm_subscribers'         => 'abonnés',
     'crm_unique_opens'        => 'Ouvertures uniques',
     'crm_view_opens'          => 'Voir le tableau détaillé des ouvertures pour cette campagne',
-    'crm_detail_opens'        => 'Détail des ouvertures pour la campagne #'
+    'crm_detail_opens'        => 'Détail des ouvertures pour la campagne #',
+    'tracking_test_title' => 'État du tracking de test',
+    'tracking_test_digest' => 'Test du digest',
+    'tracking_test_campaign' => 'Test de campagne',
+    'tracking_test_open_ok' => 'Tracking d’ouverture détecté',
+    'tracking_test_open_wait' => 'Tracking d’ouverture : en attente de l’ouverture de l’email de test',
+    'tracking_test_click_ok' => 'Tracking de clic détecté',
+    'tracking_test_click_wait' => 'Tracking de clic : en attente d’un clic sur un lien suivi',
+    'tracking_test_help' => 'L’envoi d’un nouveau test remet ces indicateurs à zéro. Ouvrez l’email de test et cliquez sur l’un de ses liens normaux, puis rechargez cette page d’administration. Les événements de test ne modifient jamais les statistiques des campagnes.',
+    'tracking_test_open_disabled' => 'Le tracking d’ouverture est désactivé dans la configuration de Hello',
+    'tracking_test_click_disabled' => 'Le tracking de clic est désactivé dans la configuration de Hello',
 );
 
+// Localization of the Admin Configuration UI
 $LANG_configsections['hello'] = array(
     'label' => 'Hello',
     'title' => 'Hello Configuration'
@@ -262,6 +275,7 @@ $LANG_fs['hello'] = array(
     'fs_01' => 'Hello plugin'
 );
 
+// Note: entries 0, 1, and 12 are the same as in $LANG_configselects['Core']
 $LANG_configselects['hello'] = array(
     0 => array('True' => 1, 'False' => 0),
     1 => array('True' => TRUE, 'False' => FALSE)
