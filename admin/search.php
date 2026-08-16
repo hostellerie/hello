@@ -1,12 +1,15 @@
 <?php
 
+/**
+* @package hello
+*/
 /* Reminder: always indent with 4 spaces (no tabs). */
 // +---------------------------------------------------------------------------+
-// | Hello Plugin 2.1.1                                                        |
+// | hello Plugin 2.2.1                                                        |
 // +---------------------------------------------------------------------------+
 // | search.php                                                                |
 // +---------------------------------------------------------------------------+
-// | Copyright (C) 2016 by the following authors:                              |
+// | Copyright (C) 2016-2026 by the following authors:                         |
 // |                                                                           |
 // | Authors: ::Ben - ben AT geeklog DOT fr                                    |
 // +---------------------------------------------------------------------------+
@@ -34,7 +37,7 @@ require_once('../../../lib-common.php');
 $display = '';
 
 // Make sure user has access to this page
-if (!SEC_hasRights ('user.edit')) {
+if (!SEC_hasRights ('hello.edit')) {
     $display .= COM_startBlock ($MESSAGE[30]);
     $display .= $MESSAGE[37];
     $display .= COM_endBlock ();
@@ -53,9 +56,10 @@ function display_form ($query = '')
 
     $display = '';
 
-    $display .= '<form action="' . $PHP_SELF . '" method="GET">' . LB;
+    $safe_query = htmlspecialchars($query, ENT_QUOTES);
+    $display .= '<form action="' . htmlspecialchars($PHP_SELF, ENT_QUOTES) . '" method="GET">' . LB;
     $display .= '<p>' . $LANG_HELLO01['search_text'] . '</p>' . LB;
-    $display .= '<input type="text" size="40" name="query" value="' . $query . '">' . LB;
+    $display .= '<input type="text" size="40" name="query" value="' . $safe_query . '">' . LB;
     $display .= '<input type="submit" value="' . $LANG_HELLO01['search_button'] . '">' . LB;
     $display .= '<input type="hidden" name="mode" value="search">' . LB;
     $display .= '</form>' . LB;
@@ -74,10 +78,15 @@ function search_user ($query)
     } else {
         $retval .= '[ <a href="' . $_CONF['site_admin_url'] . '/plugins/hello/search.php">' . $LANG_HELLO01['new_search'] . '</a>  ]</p>' . LB;
 
-        if (is_numeric ($query)) {
-            $sql = "SELECT uid,username,fullname,email FROM {$_TABLES['users']} WHERE uid = '{$query}'";
+        if (is_numeric($query)) {
+            $uid = (int) $query;
+            $sql = "SELECT uid,username,fullname,email FROM {$_TABLES['users']} WHERE uid = {$uid}";
         } else {
-            $sql = "SELECT uid,username,fullname,email FROM {$_TABLES['users']} WHERE (uid > 1) AND (username LIKE '%{$query}%' OR fullname LIKE '%{$query}%' OR email LIKE '%{$query}%') ORDER BY uid";
+            $escaped_query = DB_escapeString($query);
+            $sql = "SELECT uid,username,fullname,email FROM {$_TABLES['users']} "
+                . "WHERE (uid > 1) AND (username LIKE '%{$escaped_query}%' "
+                . "OR fullname LIKE '%{$escaped_query}%' OR email LIKE '%{$escaped_query}%') "
+                . "ORDER BY uid";
         }
 
         $result = DB_query ($sql);
@@ -89,18 +98,21 @@ function search_user ($query)
             for ($i = 0; $i < $num; $i++) {
                 $A = DB_fetchArray ($result);
                 $retval .= '<tr>';
-                $retval .= '<td><a href="' . $_CONF['site_url'] . '/users.php?mode=profile&amp;uid=' . $A['uid'] . '"><img src="' . $_CONF['layout_url'] . '/images/person.png" border="0"></a></td>';
-                $retval .= '<td><a href="' . $PHP_SELF . '?mode=inspect&amp;uid=' . $A['uid'] . '">' . $A['username'] . '</a></td>';
-                $retval .= '<td>' . $A['fullname'] . '</td>';
-                $retval .= '<td><a href="mailto:' . $A['email'] . '">' . $A['email'] . '</a></td>';
+                $retval .= '<td><a href="' . $_CONF['site_url'] . '/users.php?mode=profile&amp;uid=' . $A['uid'] . '"><img src="' . $_CONF['layout_url'] . '/images/person.gif" border="0"></a></td>';
+                $username = htmlspecialchars($A['username'], ENT_QUOTES);
+                $fullname = htmlspecialchars($A['fullname'], ENT_QUOTES);
+                $email = htmlspecialchars($A['email'], ENT_QUOTES);
+                $retval .= '<td><a href="' . htmlspecialchars($PHP_SELF, ENT_QUOTES) . '?mode=inspect&amp;uid=' . (int) $A['uid'] . '">' . $username . '</a></td>';
+                $retval .= '<td>' . $fullname . '</td>';
+                $retval .= '<td><a href="mailto:' . $email . '">' . $email . '</a></td>';
                 $retval .= '</tr>' . LB;
             }
             $retval .= '</table>' . LB;
         } else {
             if (is_numeric ($query)) {
-                $retval .= '<p>' . sprintf ($LANG_HELLO01['uid_not_found'], $query);
+                $retval .= '<p>' . sprintf($LANG_HELLO01['uid_not_found'], htmlspecialchars($query, ENT_QUOTES));
             } else {
-                $retval .= '<p>' . sprintf ($LANG_HELLO01['not_found'], $query);
+                $retval .= '<p>' . sprintf($LANG_HELLO01['not_found'], htmlspecialchars($query, ENT_QUOTES));
             }
             $retval .= ' ' . $LANG_HELLO01['try_again'] . '</p>' . LB;
             $retval .= display_form ($query);
@@ -110,11 +122,12 @@ function search_user ($query)
     return $retval;
 }
 
-function inspect ($uid)
+function inspect($uid)
 {
     global $_TABLES, $_CONF, $LANG28, $LANG_HELLO01, $PHP_SELF;
 
     $retval = '';
+    $uid = (int) $uid;
 
     if ($uid > 1) {
         $forum = false;
@@ -129,11 +142,14 @@ function inspect ($uid)
         $digest = DB_getItem ($_TABLES['userindex'], 'etids', "uid = '{$uid}'");
 
         $retval .= '[ <a href="' . $_CONF['site_admin_url'] . '/plugins/hello/search.php">' . $LANG_HELLO01['new_search'] . '</a>  ]</p>' . LB;
-        $retval .= '<p>' . $LANG_HELLO01['user'] . ': <b>' . $U['username'] . '</b> ';
-        if (!empty ($U['fullname'])) {
-            $retval .= '(' . $U['fullname'] . ') ';
+        $username = htmlspecialchars($U['username'], ENT_QUOTES);
+        $fullname = htmlspecialchars($U['fullname'], ENT_QUOTES);
+        $email = htmlspecialchars($U['email'], ENT_QUOTES);
+        $retval .= '<p>' . $LANG_HELLO01['user'] . ': <b>' . $username . '</b> ';
+        if (!empty($U['fullname'])) {
+            $retval .= '(' . $fullname . ') ';
         }
-        $retval .= '&lt;<a href="mailto:' . $U['email'] . '">' . $U['email'] . '</a>&gt;</p>' . LB;
+        $retval .= '&lt;<a href="mailto:' . $email . '">' . $email . '</a>&gt;</p>' . LB;
         $retval .= '<p>' . $LANG_HELLO01['topics'] . ': ';
         if (empty ($digest)) {
             $retval .= '<em>' . $LANG_HELLO01['all_topics'] . '</em>';
@@ -143,7 +159,7 @@ function inspect ($uid)
             $topics = explode (' ', $digest);
             foreach ($topics as $t) {
                 $tname = DB_getItem ($_TABLES['topics'], 'topic', "tid = '{$t}'");
-                $retval .= '<a href="' . $_CONF['site_url'] . '/index.php?topic=' . $t . '">' . $tname . '</a>, ';
+                $retval .= '<a href="' . $_CONF['site_url'] . '/index.php?topic=' . $t . '">' . htmlspecialchars($tname, ENT_QUOTES) . '</a>, ';
             }
         }
         $retval .= '</p>';
@@ -166,7 +182,7 @@ function inspect ($uid)
                 $forums++;
                 foreach ($f as $id => $name) {
                     $retval .= '<a href="' . $_CONF['site_url']
-                            . '/forum/index.php?forum=' . $id . '">' . $name
+                            . '/forum/index.php?forum=' . $id . '">' . htmlspecialchars($name, ENT_QUOTES)
                             . '</a>, ';
                 }
             }
@@ -181,10 +197,12 @@ function inspect ($uid)
         }
 
         if (($digest != '-') || ($forums > 0)) {
-            $retval .= '<form action="' . $PHP_SELF . '" action="GET">' . LB;
-            $retval .= '<input type="submit" value="' . $LANG_HELLO01['reset_button'] . '">' . LB;
+            $token = SEC_createToken();
+            $retval .= '<form action="' . htmlspecialchars($PHP_SELF, ENT_QUOTES) . '" method="POST">' . LB;
+            $retval .= '<input type="submit" value="' . htmlspecialchars($LANG_HELLO01['reset_button'], ENT_QUOTES) . '">' . LB;
             $retval .= '<input type="hidden" name="mode" value="reset">' . LB;
             $retval .= '<input type="hidden" name="uid" value="' . $uid . '">' . LB;
+            $retval .= '<input type="hidden" name="' . CSRF_TOKEN . '" value="' . $token . '">' . LB;
             $retval .= '</form>' . LB;
         }
     } else {
@@ -194,11 +212,12 @@ function inspect ($uid)
     return $retval;
 }
 
-function reset_it ($uid)
+function reset_it($uid)
 {
     global $_TABLES, $LANG_HELLO01;
 
     $retval = '';
+    $uid = (int) $uid;
 
     if ($uid > 1) {
         DB_query ("UPDATE {$_TABLES['userindex']} SET etids = '-' WHERE uid = '{$uid}'");
@@ -209,7 +228,7 @@ function reset_it ($uid)
         }
 
         $username = DB_getItem ($_TABLES['users'], 'username', "uid = '{$uid}'");
-        $retval .= '<p>' . sprintf ($LANG_HELLO01['success'], $username) . '</p>' . LB;
+        $retval .= '<p>' . sprintf($LANG_HELLO01['success'], htmlspecialchars($username, ENT_QUOTES)) . '</p>' . LB;
     }
 
     $retval .= display_form ();
@@ -220,16 +239,25 @@ function reset_it ($uid)
 $display .= hello_admin_menu();
 $display .= COM_startBlock ($LANG_HELLO01['block_headline']);
 
-switch ($_GET['mode'])
+$mode = isset($_REQUEST['mode']) ? $_REQUEST['mode'] : '';
+
+switch ($mode)
 {
     case 'inspect':
-        $display .= inspect ($_GET['uid']);
+        $uid = isset($_GET['uid']) ? (int) $_GET['uid'] : 0;
+        $display .= inspect($uid);
         break;
     case 'reset':
-        $display .= reset_it ($_GET['uid']);
+        $uid = isset($_POST['uid']) ? (int) $_POST['uid'] : 0;
+        if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'POST' && SEC_checkToken()) {
+            $display .= reset_it($uid);
+        } else {
+            $display .= COM_showMessageText($MESSAGE[37], $MESSAGE[30]);
+        }
         break;
     case 'search':
-        $display .= search_user ($_GET['query']);
+        $query = isset($_GET['query']) ? trim($_GET['query']) : '';
+        $display .= search_user($query);
         break;
     default:
         

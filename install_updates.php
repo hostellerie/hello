@@ -1,21 +1,18 @@
 <?php
 
-/**
-* @package hello
-*/
 /* Reminder: always indent with 4 spaces (no tabs). */
 // +---------------------------------------------------------------------------+
 // | hello Plugin 2.2.1                                                        |
 // +---------------------------------------------------------------------------+
-// | install_defaults.php                                                      |
+// | install_updates.php
 // |                                                                           |
-// | Initial Installation Defaults used when loading the online configuration  |
-// | records. These settings are only used during the initial installation     |
-// | and not referenced any more once the plugin is installed.                 |
+// | Geeklog hello plugin file                                                 |
 // +---------------------------------------------------------------------------+
 // | Copyright (C) 2016-2026 by the following authors:                         |
 // |                                                                           |
-// | Authors: Ben        - ben AT geeklog DOT fr                               |
+// | Authors: ::Ben - ben AT geeklog DOT fr                                    |
+// +---------------------------------------------------------------------------+
+// | Created with the Geeklog Plugin Toolkit.                                  |
 // +---------------------------------------------------------------------------+
 // |                                                                           |
 // | This program is free software; you can redistribute it and/or             |
@@ -33,60 +30,19 @@
 // | Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.           |
 // |                                                                           |
 // +---------------------------------------------------------------------------+
-//
-
-if (strpos(strtolower($_SERVER['PHP_SELF']), 'install_defaults.php') !== false) {
-    die('This file can not be used on its own!');
-}
-
-/*
- * hello default settings
- *
- * Initial Installation Defaults used when loading the online configuration
- * records. These settings are only used during the initial installation
- * and not referenced any more once the plugin is installed
- *
- */
-  
-global $_HE_DEFAULT;
-$_HE_DEFAULT = array();
-
-$_HE_DEFAULT['max_email'] = 10;
-$_HE_DEFAULT['hourly_limit'] = 150;
-$_HE_DEFAULT['track_clicks'] = 1;
-$_HE_DEFAULT['track_opens'] = 1;
-
 
 /**
-* Initialize hello plugin configuration
-*
-* Creates the database entries for the configuation if they don't already
-* exist. 
-*
-* @return   boolean     true: success; false: an error occurred
-*
+* @package hello
 */
-function plugin_initconfig_hello()
+/**
+ * Updates config values or does PHP-based migration for Hello 2.2.0
+ */
+function hello_update_ConfValues_2_2_0()
 {
-    global $_CONF, $_HE_DEFAULT;
-
-    $c = config::get_instance();
-    if (!$c->group_exists('hello')) {
-
-        //This is main subgroup #0
-		$c->add('sg_0', NULL, 'subgroup', 0, 0, NULL, 0, true, 'hello');
-		
-		//This is fieldset #1  in subgroup #0   
-		$c->add('fs_01', NULL, 'fieldset', 0, 0, NULL, 0, true, 'hello');
-        $c->add('max_email', $_HE_DEFAULT['max_email'],
-                'text', 0, 0, 0, 10, true, 'hello');				
-        $c->add('hourly_limit', $_HE_DEFAULT['hourly_limit'],
-                'text', 0, 0, 0, 20, true, 'hello');
-        $c->add('track_clicks', $_HE_DEFAULT['track_clicks'],
-                'select', 0, 0, 0, 30, true, 'hello');
-        $c->add('track_opens', $_HE_DEFAULT['track_opens'],
-                'select', 0, 0, 0, 40, true, 'hello');
-    }
+    // global $_CONF, $_TABLES;
+    // require_once $_CONF['path_system'] . 'classes/config.class.php';
+    // $c = config::get_instance();
+    // Add new configs here if needed in the future
 
     return true;
 }

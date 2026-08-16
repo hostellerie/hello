@@ -5,10 +5,6 @@
 
     <table cellpadding="2" cellspacing="0">
         <tr>
-            <td><img src="{site_admin_url}/plugins/hello/images/hello.png" alt=""{xhtml}></td>
-            <td>{lang_note}</td>
-        </tr>
-        <tr>
             <td class="alignright" nowrap="nowrap">{lang_to}:</td>
             <td width="100%">
                 <select name="to_group">
@@ -30,7 +26,13 @@
             <td><input type="text" name="subject" size="40" value="{subject}"{xhtml}></td>
         </tr>
         <tr>
-            <td class="alignright" style="vertical-align:top;" nowrap="nowrap">{lang_body}:</td>
+            <td class="alignright" style="vertical-align:top;" nowrap="nowrap">{lang_body}:<br/><br/>
+            <small style="color:#666;">
+            <strong>Variables :</strong><br/>
+            [USERNAME]<br/>
+            [FULLNAME]
+            </small>
+            </td>
             <td><textarea rows="12" name="content" cols="44">{message_html}</textarea></td>
         </tr>
         <tr>
@@ -41,17 +43,11 @@
             <td>&nbsp;</td>
             <td><input type="checkbox" name="html"{xhtml}> {lang_HTML}</td>
         </tr>
-        <tr>
-            <td>&nbsp;</td>
-            <td><input type="checkbox" name="priority"{xhtml}> {lang_urgent}</td>
-        </tr>
-        <tr>
-            <td>&nbsp;</td>
-            <td><input type="checkbox" name="overstyr"{xhtml}> {lang_ignoreusersettings}</td>
-        </tr>
+
         <tr>
             <td colspan="2" class="aligncenter">
-                <input type="submit" value="{lang_send}"{xhtml}>
+                <input type="submit" name="test_email" value="Send Test to Me" style="margin-right: 15px;"{xhtml}>
+                <input type="submit" name="send_email" value="{lang_send}"{xhtml}>
                 <input type="hidden" name="mail" value="mail"{xhtml}>
                 <input type="hidden" name="{gltoken_name}" value="{gltoken}"{xhtml}>
             </td>
