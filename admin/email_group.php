@@ -1,12 +1,15 @@
 <?php
 
+/**
+* @package hello
+*/
 /* Reminder: always indent with 4 spaces (no tabs). */
 // +---------------------------------------------------------------------------+
-// | Hello Plugin 2.1.1                                                               |
+// | hello Plugin 2.2.1                                                        |
 // +---------------------------------------------------------------------------+
 // | email_group.php                                                           |
 // +---------------------------------------------------------------------------+
-// | Copyright (C) 2016 by the following authors:                              |
+// | Copyright (C) 2016-2026 by the following authors:                         |
 // |                                                                           |
 // | Authors: ::Ben - ben AT geeklog DOT fr                                    |
 // +---------------------------------------------------------------------------+
@@ -62,18 +65,34 @@ function display_mailform ($vars=array())
 
     if ($_CONF['advanced_editor'] == 1) {
         $postmode = 'html';
-        $_SCRIPTS->setJavaScriptLibrary('jquery');
-        $_SCRIPTS->setJavaScriptFile('ckeditor', '/editors/ckeditor/ckeditor.js');
-        $ckeditor = '        var geeklogEditorName = "ckeditor";
-        var geeklogAllowedHtml = [];
-        jQuery(function() {
-            CKEDITOR.replace( \'message_html\', {
-             customConfig: \'' .  $_CONF['site_url'] . '/editors/ckeditor/config.js\',
-             toolbar: \'toolbar0\',
-             height:500
-            });
-        });';
-        $_SCRIPTS->setJavaScript($ckeditor , true);
+        
+        if (function_exists('COM_setupAdvancedEditor')) {
+            COM_setupAdvancedEditor('');
+            $js = "
+jQuery(window).on('load', function() {
+    if (typeof AdvancedEditor !== 'undefined' && typeof AdvancedEditor.newEditor !== 'undefined') {
+        AdvancedEditor.newEditor({
+            TextareaId: [ {plain:'message_html', advanced:'message_html'} ],
+            toolbar: 1
+        });
+    }
+});";
+            $_SCRIPTS->setJavaScript($js, true, true);
+        } else {
+            $_SCRIPTS->setJavaScriptLibrary('jquery');
+            $_SCRIPTS->setJavaScriptFile('ckeditor', $_CONF['site_url'] . '/editors/ckeditor/ckeditor.js');
+            $ckeditor = '
+            jQuery(function() {
+                if (typeof CKEDITOR !== "undefined") {
+                    CKEDITOR.replace( "message_html", {
+                     customConfig: "' .  $_CONF['site_url'] . '/editors/ckeditor/config.js",
+                     toolbar: "toolbar1",
+                     height:500
+                    });
+                }
+            });';
+            $_SCRIPTS->setJavaScript($ckeditor , true);
+        }
     } elseif (empty ($postmode)) {
         $postmode = $_CONF['postmode'];
     }
@@ -98,20 +117,12 @@ function display_mailform ($vars=array())
     $mail_templates->set_var ('site_url', $_CONF['site_url']);
     $mail_templates->set_var ('site_admin_url', $_CONF['site_admin_url']);
     $mail_templates->set_var ('layout_url', $_CONF['layout_url']);
-    $mail_templates->set_var ('startblock_email', COM_startBlock ($LANG31[1],
-            '', COM_getBlockTemplate ('_admin_block', 'header')));
+    $mail_templates->set_var ('startblock_email', '');
     $mail_templates->set_var ('php_self', $_CONF['site_admin_url'] . '/plugins/hello/email_group.php');
     $mail_templates->set_var ('lang_note', $LANG31[19]);
     $mail_templates->set_var ('lang_to', $LANG31[18]);
 	
-	$mail_templates->set_var('import_message', $LANG_HELLO01['import_message']);
-	$mail_templates->set_var('separator_in', $LANG_HELLO01['separator']);
-	$mail_templates->set_var('select_file', $LANG_HELLO01['select_file']);
-	$separator_options = '<option value=",">,</option>' . LB;
-	$separator_options .= '<option value=";">;</option>' . LB;
-	$separator_options .= '<option value="tab">tab</option>' . LB;
-	
-	$mail_templates->set_var('separator_options_in', $separator_options);
+
 	
     $mail_templates->set_var ('lang_selectgroup', $LANG31[25]);
     $group_options = '';
@@ -124,7 +135,8 @@ function display_mailform ($vars=array())
     }
     asort ($groups);
     foreach ($groups as $groupID => $groupName) {
-        $group_options .= '<option value="' . $groupID . '">' . $groupName
+        $selected = (isset($vars['to_group']) && $vars['to_group'] == $groupID) ? ' selected="selected"' : '';
+        $group_options .= '<option value="' . $groupID . '"' . $selected . '>' . $groupName
                        . '</option>';
     }
     $mail_templates->set_var ('group_options', $group_options);
@@ -142,12 +154,51 @@ function display_mailform ($vars=array())
     $mail_templates->set_var ('lang_urgent', $LANG31[11]);
     $mail_templates->set_var ('lang_ignoreusersettings', $LANG31[14]);
     $mail_templates->set_var ('lang_send', $LANG31[12]);
-    $mail_templates->set_var ('end_block', COM_endBlock (COM_getBlockTemplate ('_admin_block', 'footer')));
+    $mail_templates->set_var ('end_block', '');
     $mail_templates->set_var ('xhtml', XHTML);
     $mail_templates->set_var('gltoken_name', CSRF_TOKEN);
     $mail_templates->set_var('gltoken', SEC_createToken());
-    $mail_templates->set_var('subject', $vars['subject']);
-    $mail_templates->set_var('message_html', $vars['content']);
+    $mail_templates->set_var('subject', isset($vars['subject']) ? $vars['subject'] : '');
+    $mail_templates->set_var('message_html', isset($vars['content']) ? $vars['content'] : '');
+    
+    //Date time selector
+    $start_stamp = time ();
+    
+    $start_month = isset($vars['start_month']) ? $vars['start_month'] : date('m', $start_stamp);
+    $start_day = isset($vars['start_day']) ? $vars['start_day'] : date('d', $start_stamp);
+    $start_year = isset($vars['start_year']) ? $vars['start_year'] : date('Y', $start_stamp);
+
+    $start_hour = isset($vars['start_hour']) ? $vars['start_hour'] : date ('H', $start_stamp);
+    $start_minute = isset($vars['start_minute']) ? $vars['start_minute'] : intval (date ('i', $start_stamp) / 15) * 15;
+    
+    if ($start_hour >= 12) {
+        $startampm = 'pm';
+    } else {
+        $startampm = 'am';
+    }
+    $start_hour_24 = $start_hour % 24;
+    if ($start_hour > 12) {
+        $start_hour = $start_hour - 12;
+    } else if ($start_hour == 0) {
+        $start_hour = 12;
+    }
+    
+    $month_options = COM_getMonthFormOptions ($start_month);
+    $mail_templates->set_var ('startmonth_options', $month_options);
+
+    $day_options = COM_getDayFormOptions ($start_day);
+    $mail_templates->set_var ('startday_options', $day_options);
+
+    $year_options = COM_getYearFormOptions ($start_year);
+    $mail_templates->set_var ('startyear_options', $year_options);
+
+    $hour_options = COM_getHourFormOptions ($start_hour_24, 24);
+    $mail_templates->set_var ('starthour_options', $hour_options);
+
+    $mail_templates->set_var ('hour_mode', 24);
+
+    $mail_templates->set_var ('startminute_options',
+                               COM_getMinuteFormOptions ($start_minute, 15));
 
     $mail_templates->parse ('output', 'form');
     $retval = $mail_templates->finish ($mail_templates->get_var ('output'));
@@ -164,14 +215,13 @@ function display_mailform ($vars=array())
 */
 function send_messages($vars)
 {
-    global $_CONF, $_TABLES, $LANG31, $LANG_HELLO01;
+    global $_CONF, $_TABLES, $LANG31, $LANG_HELLO01, $_HE_CONF;
 
     require_once($_CONF['path_system'] . 'lib-user.php');
 
     $retval = '';
 
-    if (empty ($vars['fra']) OR empty ($vars['fraepost']) OR
-            empty ($vars['subject']) OR empty ($vars['content']) ) {
+    if (empty ($vars['subject']) OR empty ($vars['content']) ) {
         $retval .= COM_startBlock ($LANG31[1], '',
                         COM_getBlockTemplate ('_msg_block', 'header'));
         $retval .= $LANG31[26];
@@ -182,120 +232,95 @@ function send_messages($vars)
         return $retval;
     }
 
-    // Urgent message!
-    if (isset ($vars['priority'])) {
-        $priority = 1;
-    } else {
-        $priority = 0;
-    }
+    $priority = 3; // Default normal priority
 
     if (!empty ($vars['to_group'])) {
+    
+        // ----------------------------------------------------
+        // TEST EMAIL MODE
+        // ----------------------------------------------------
+        if (isset($_POST['test_email'])) {
+            global $_USER;
+            $destinataire = $_USER['email'];
+            $username = $_USER['username'];
+            $fullname = empty($_USER['fullname']) ? $_USER['username'] : $_USER['fullname'];
+            
+            $sujet = $vars['subject'];
+            if (strpos($sujet, '[TEST] ') !== 0) {
+                $sujet = '[TEST] ' . $sujet;
+            }
+            $content = $vars['content'];
+            
+            // Variable Replacement
+            $content = str_replace(array('[USERNAME]', '[FULLNAME]'), array($username, $fullname), $content);
+            
+            // Test footer with an active but non-destructive unsubscribe simulation.
+            // unsubscribe.php recognizes test=1 and never writes preferences or stats.
+            $testFooter = '<br><br><table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-top: 1px solid #eaeaea; margin-top: 30px; padding-top: 15px; font-family: sans-serif; font-size: 11px; color: #777;"><tr><td align="center">';
+            $testFooter .= sprintf($LANG_HELLO01['why_email'], $_CONF['site_name']);
+            $testFooter .= '<br><strong>' . $LANG_HELLO01['test_email_footer'] . '</strong><br>';
+            $testFooter .= HELLO_unsubscribeLink((int) $_USER['uid'], $destinataire, 0, true);
+
+            $content .= $testFooter;
+
+            $from = $_CONF['site_mail'];
+
+            $mailSent = HELLO_mail($destinataire, $sujet, $content, $from, true, $priority);
+
+            if ($mailSent) {
+                $retval .= '<div role="status" style="margin: 0 0 20px 0; padding: 16px 18px; border: 2px solid #2e7d32; background: #edf7ed; color: #1b5e20; font-size: 16px; line-height: 1.5; border-radius: 4px;">';
+                $retval .= '<strong style="font-size: 18px;">&#10003; ' . $LANG_HELLO01['test_email_success'] . '</strong><br>';
+                $retval .= '<span style="font-size: 15px;">' . htmlspecialchars($destinataire, ENT_QUOTES, 'UTF-8') . '</span>';
+                $retval .= '</div>';
+            } else {
+                $retval .= '<div role="alert" style="margin: 0 0 20px 0; padding: 16px 18px; border: 2px solid #b71c1c; background: #fdecea; color: #7f0000; font-size: 16px; line-height: 1.5; border-radius: 4px;">';
+                $retval .= '<strong>' . $LANG_HELLO01['test_email_failed'] . '</strong>';
+                $retval .= '</div>';
+            }
+            
+            // Preserve form after test
+            $retval .= display_mailform($vars);
+            return $retval;
+        }
+        // ----------------------------------------------------
 	    $groupList = implode (',', USER_getChildGroups($vars['to_group']));
 		//Group name
 		$group_name = DB_query("SELECT grp_name FROM {$_TABLES['groups']} WHERE grp_id =" . $vars['to_group'] . " ");
 		$group_name = DB_fetchArray ($group_name);
 		$email_group = $group_name[0];
 		
-		if (isset ($vars['overstyr'])) {
-			$sql = "SELECT DISTINCT username,fullname,email FROM {$_TABLES['users']},{$_TABLES['group_assignments']} WHERE uid > 1";
-			$sql .= " AND {$_TABLES['users']}.status = 3 AND ((email is not null) and (email != ''))";
-			$sql .= " AND {$_TABLES['users']}.uid = ug_uid AND ug_main_grp_id IN ({$groupList})";
-		} else {
-			$sql = "SELECT DISTINCT username,fullname,email,emailfromadmin FROM {$_TABLES['users']},{$_TABLES['userprefs']},{$_TABLES['group_assignments']} WHERE {$_TABLES['users']}.uid > 1";
-			$sql .= " AND {$_TABLES['users']}.status = 3 AND ((email is not null) and (email != ''))";
-			$sql .= " AND {$_TABLES['users']}.uid = {$_TABLES['userprefs']}.uid AND emailfromadmin = 1";
-			$sql .= " AND ug_uid = {$_TABLES['users']}.uid AND ug_main_grp_id IN ({$groupList})";
-		}
+        if (isset($_TABLES['user_attributes'])) {
+            $sql = "SELECT DISTINCT username,fullname,email,emailfromadmin,{$_TABLES['users']}.uid FROM {$_TABLES['users']},{$_TABLES['user_attributes']},{$_TABLES['group_assignments']} WHERE {$_TABLES['users']}.uid > 1";
+            $sql .= " AND {$_TABLES['users']}.status = 3 AND ((email is not null) and (email != ''))";
+            $sql .= " AND {$_TABLES['users']}.uid = {$_TABLES['user_attributes']}.uid AND emailfromadmin = 1";
+            $sql .= " AND ug_uid = {$_TABLES['users']}.uid AND ug_main_grp_id IN ({$groupList})";
+        } else {
+            $sql = "SELECT DISTINCT username,fullname,email,emailfromadmin,{$_TABLES['users']}.uid FROM {$_TABLES['users']},{$_TABLES['userprefs']},{$_TABLES['group_assignments']} WHERE {$_TABLES['users']}.uid > 1";
+            $sql .= " AND {$_TABLES['users']}.status = 3 AND ((email is not null) and (email != ''))";
+            $sql .= " AND {$_TABLES['users']}.uid = {$_TABLES['userprefs']}.uid AND emailfromadmin = 1";
+            $sql .= " AND ug_uid = {$_TABLES['users']}.uid AND ug_main_grp_id IN ({$groupList})";
+        }
 		$result = DB_query ($sql);
 		$nrows = DB_numRows ($result);
 		$quantity = $nrows;
 	} else {
-		// OK, let's upload csv file
-	    require_once($_CONF['path_system'] . 'classes/upload.class.php');
-	    $upload = new upload();
-
-	    //Debug with story debug function
-	    if (isset ($_CONF['debug_image_upload']) && $_CONF['debug_image_upload']) {
-		    $upload->setLogFile ($_CONF['path'] . 'logs/error.log');
-		    $upload->setDebug (true);
-	    }
-	    $upload->setMaxFileUploads (1);
-
-	    $upload->setAllowedMimeTypes (array (
-		    	'text/csv'   => '.csv',
-		    	'text/comma-separated-values'  => '.csv',
-		    	'application/vnd.ms-excel' => '.csv',
-		    	'application/x-csv' => '.csv'
-		    	));
-	
-	    if (!$upload->setPath($_CONF['path_data'])) {
-		    $output = COM_siteHeader ('menu', $LANG24[30]);
-		    $output .= COM_startBlock ($LANG24[30], '', COM_getBlockTemplate ('_msg_block', 'header'));
-		    $output .= $upload->printErrors (false);
-		    $output .= COM_endBlock (COM_getBlockTemplate ('_msg_block', 'footer'));
-		    $output .= COM_siteFooter ();
-		    echo $output;
-		    exit;
-	    }
-
-	    // Set file permissions on file after it gets uploaded (number is in octal)
-	    $upload->setPerms('0644');
-
-		$curfile = current($_FILES);
-		if (!empty($curfile['name'])) {
-			$pos = strrpos($curfile['name'],'.') + 1;
-			$fextension = substr($curfile['name'], $pos);
-			$filename = 'import_hello_' . COM_makesid()  . '.' . $fextension;
-		}
-		if ($filename == '') {
-		    $output = COM_siteHeader ('menu', $LANG24[30]);
-		    $output .= COM_startBlock ($LANG24[30], '', COM_getBlockTemplate ('_msg_block', 'header'));
-		    $output .= 'Upload error: csv file name is empty. Please try again...';
-		    $output .= COM_endBlock (COM_getBlockTemplate ('_msg_block', 'footer'));
-		    $output .= COM_siteFooter ();
-		    echo $output;
-		    exit;
-	    }
-		$upload->setFileNames($filename);
-		reset($_FILES);
-		$upload->uploadFiles();
-
-		if ($upload->areErrors()) {
-			$msg = $upload->printErrors(false);
-			return $LANG24[30];
-		}
-		
-		//email group
-		$email_group = $LANG_HELLO01['csv_file'];
-		$destinataires = array();
-		
-		$separator = $vars['separator'];
-		if ( !in_array($separator, array(',','tab',';')) ) {
-	        $separator = ',';
-	    }
-		if ($separator == 'tab') $separator = "\t";
-		
-		if (($handle = fopen($_CONF['path_data'] . $filename, "r")) !== FALSE) {
-		    $quantity = 0;
-			while (($data = fgetcsv($handle, 0, $separator)) !== FALSE) {
-				//todo check if email is valid
-				if ($data[0] != '' and COM_isEmail($data[0])) {
-				    $quantity++;
-					$destinataires[] = $data[0];
-				}
-			}
-			fclose($handle);
-		}
-	}
+        $retval .= COM_startBlock ($LANG31[1], '', COM_getBlockTemplate ('_msg_block', 'header'));
+        $retval .= 'Error: No group selected.';
+        $retval .= COM_endBlock (COM_getBlockTemplate ('_msg_block', 'footer'));
+        return $retval;
+    }
 
     $retval .= COM_startBlock ($LANG31[1]);
 
     // register hello
 	
-	$creation = date ('YmdHi', time ());
-	$subject = addslashes($vars['subject']);
-	$content = addslashes($vars['content']);
-	$from = COM_formatEmailAddress ($vars['fra'], $vars['fraepost']);
+
+    //$creation = date ('YmdHi', time ());
+    $creation = sprintf('%04d%02d%02d%02d%02d', $vars['start_year'], $vars['start_month'], $vars['start_day'], $vars['start_hour'], $vars['start_minute']);
+    
+	$subject = DB_escapeString($vars['subject']);
+	$content = DB_escapeString($vars['content']);
+	$from = $_CONF['site_mail'];
 
 	$sql_ajout_hello = "INSERT INTO {$_TABLES['hello']} (subject, creation, email_group, quantity, content) VALUES ('$subject', '$creation', '$email_group', '$quantity','$content')";
 	DB_query ($sql_ajout_hello);
@@ -306,52 +331,51 @@ function send_messages($vars)
     $successes = 0;
     $failures = 0;
 	if (!empty ($vars['to_group'])) {
+        $insert_values = array();
 		for ($i = 0; $i < $quantity; $i++) {
 			$A = DB_fetchArray ($result);
-			$destinataire = $A['email'];
-			$expediteur = $from;
-			$date = date ('YmdHi', time ());
-		
-			$sql_ajout_hello = "INSERT INTO {$_TABLES['hello_queue']} (expediteur, destinataire, date, hello_id, subject, content, priority) VALUES ('$expediteur', '$destinataire', '$date', '$new_hello_id', '$subject', '$content', '$priority')";
-			if ($destinataire != '' ) {
-			    if (DB_query ($sql_ajout_hello)) {
-				    $successes = $successes + 1;
-			    } else {
-				    $failures = $failures + 1;
-			    }
-			} else {
-			    $failures = $failures + 1;
-			}
-		}
-	} else {
-	    //csv file
-		for ($i = 0; $i < $quantity; $i++) {
-		    $destinataire = $destinataires[$i];
-			$expediteur = $from;
-			$date = date ('YmdHi', time ());
-		
-			$sql_ajout_hello = "INSERT INTO {$_TABLES['hello_queue']} (expediteur, destinataire, date, hello_id, subject, content, priority) VALUES ('$expediteur', '$destinataire', '$date', '$new_hello_id', '$subject', '$content', '$priority')";
+			$destinataire = DB_escapeString($A['email']);
+			$expediteur = DB_escapeString($from);
+			$explication = '<br><br><table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-top: 1px solid #eaeaea; margin-top: 30px; padding-top: 15px; font-family: sans-serif; font-size: 11px; color: #777;"><tr><td align="center">';
+            $explication .= sprintf($LANG_HELLO01['why_email'], $_CONF['site_name']) . ' &bull; ';
 			
-			if (DB_query ($sql_ajout_hello)) {
-				$successes = $successes + 1;
-			} else {
-				$failures = $failures + 1;
-			}
+			// Administrative bulk newsletters always include an unsubscribe link.
+            $maillink = HELLO_unsubscribeLink($A['uid'], $A['email'], $new_hello_id);
 			
+            // Add tracking pixel only when open tracking is enabled.
+            $tracking_pixel = '';
+            if (!isset($_HE_CONF['track_opens']) || (bool) $_HE_CONF['track_opens']) {
+                $tracking_pixel = '<img src="' . $_CONF['site_url'] . '/hello/track.php?h=' . $new_hello_id . '&amp;u=' . $A['uid'] . '" width="1" height="1" alt="" style="display:none;" />';
+            }
+            
+            $raw_content = $vars['content'];
+			$contentfinal = DB_escapeString($raw_content . $explication . $maillink . $tracking_pixel);
+            
+            $uid = (int) $A['uid'];
+		
+            $insert_values[] = "('$expediteur', '$destinataire', '$creation', '$new_hello_id', '$subject', '$contentfinal', '$priority', '$uid')";
+            
+            if (count($insert_values) >= 100 || $i == $quantity - 1) {
+                if (!empty($insert_values)) {
+                    $sql_ajout_hello = "INSERT INTO {$_TABLES['hello_queue']} (expediteur, destinataire, creation, hello_id, subject, content, priority, uid) VALUES " . implode(', ', $insert_values);
+                    if (DB_query($sql_ajout_hello)) {
+                        $successes += count($insert_values);
+                    } else {
+                        $failures += count($insert_values);
+                    }
+                    $insert_values = array();
+                }
+            }
 		}
 	}
 
 	if ($successes >= 0) {
-        $retval .= $i . ' ' . $LANG_HELLO01['email_schedule'] . '<br />' . $vars['priority'];
+        // Automatically redirect to the Campaigns page (read_email.php) after queueing
+        echo COM_refresh($_CONF['site_admin_url'] . '/plugins/hello/read_email.php?msg=queued');
+        exit;
 	} 
 	if ($failures > 0) {
 	    $retval .= 'Oups... There was ' . $failures . ' failure(s)';
-	}
-	
-	if (empty ($vars['to_group'])) {
-	    //list emails from csv
-		reset($destinataires);
-		$retval .= COM_makeList($destinataires);
 	}
   
     $retval .= COM_endBlock ();
@@ -362,13 +386,15 @@ function send_messages($vars)
 // MAIN
 
 
-$display .= hello_admin_menu();
+$display .= hello_admin_menu($LANG_HELLO01['send_email_group'], $LANG_HELLO01['inst_group']);
 
 if (isset($_POST['mail']) && ($_POST['mail'] == 'mail') && SEC_checkToken()) {
     $display .= send_messages ($_POST);
 } else {
     $display .= display_mailform ();
 }
+
+$display .= COM_endBlock(COM_getBlockTemplate('_admin_block', 'footer'));
 
 $display = COM_createHTMLDocument($display);
 COM_output($display);

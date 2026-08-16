@@ -1,0 +1,17 @@
+<div id="install" style="margin:20px;">
+    <p><img src="{img}" border="0" align="absmiddle" style="margin-right:15px;"><font size="+1"><b>{install_header}</b></font></p>
+    <p>{readme}</p>
+    <p>{lang_overview}</p>
+    <p><b>{requirements}</b></p>
+    <ul>
+	  <li>{gl_version}
+      <li>{php_version}
+	</ul>
+    <p>{install_doc}</p>
+    <p style="margin-top:15px">
+      <form method='POST' action='{cgiurl}'>
+      <input type='submit' value='Install' name='B1'>
+      <input type='hidden' value='{action}' name='action'>
+      </form>
+	</p>
+</div>

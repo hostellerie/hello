@@ -1,11 +1,12 @@
 {# begin {templatelocation} #}
 
-<div class="admin_menu">
- <a href="{site_url}/admin/plugins/hello/index.php">{homepage_label}</a> | 
- <a href="{site_url}/admin/plugins/hello/email_group.php">{send_email_group}</a> | 
- <a href="{site_url}/admin/plugins/hello/read_email.php">{read_email}</a> | 
- <a href="{site_url}/admin/plugins/hello/manual.php">{manual}</a> | 
-  {configuration}
+<div class="admin_menu" style="background: #f1f5f9; padding: 15px; border-radius: 6px; margin-bottom: 20px; text-align: center; font-size: 14px; border: 1px solid #e2e8f0; font-weight: 500;">
+ <a href="{site_url}/admin/plugins/hello/index.php" style="text-decoration: none; color: #334155; padding: 5px 10px; margin: 0 5px; display: inline-block;">{homepage_label}</a> | 
+ <a href="{site_url}/admin/plugins/hello/email_group.php" style="text-decoration: none; color: #334155; padding: 5px 10px; margin: 0 5px; display: inline-block;">{send_email_group}</a> | 
+ <a href="{site_url}/admin/plugins/hello/read_email.php" style="text-decoration: none; color: #334155; padding: 5px 10px; margin: 0 5px; display: inline-block;">{read_email}</a> | 
+ <a href="{site_url}/admin/plugins/hello/subscribers.php" style="text-decoration: none; color: #334155; padding: 5px 10px; margin: 0 5px; display: inline-block;">CRM / Abonnés</a> | 
+ <a href="{site_url}/admin/plugins/hello/manual.php" style="text-decoration: none; color: #334155; padding: 5px 10px; margin: 0 5px; display: inline-block;">{manual}</a> | 
+ <span style="display: inline-block; padding: 5px 10px; margin: 0 5px;">{configuration}</span>
 </div>
 
 {# end {templatelocation} #}

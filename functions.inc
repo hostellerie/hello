@@ -2,7 +2,7 @@
 
 /* Reminder: always indent with 4 spaces (no tabs). */
 // +---------------------------------------------------------------------------+
-// | hello Plugin 2.1.1                                                        |
+// | hello Plugin 2.2.1                                                        |
 // +---------------------------------------------------------------------------+
 // | functions.inc                                                             |
 // |                                                                           |
@@ -10,7 +10,7 @@
 // | API method and 2) implements all the common code needed by the hello      |
 // | plugin' PHP files.                                                        |
 // +---------------------------------------------------------------------------+
-// | Copyright (C) 2016 by the following authors:                              |
+// | Copyright (C) 2016-2026 by the following authors:                         |
 // |                                                                           |
 // | Authors: ::Ben - ben AT geeklog DOT fr                                    |
 // +---------------------------------------------------------------------------+
@@ -32,16 +32,20 @@
 // +---------------------------------------------------------------------------+
 //
 
-
 if (strpos(strtolower($_SERVER['PHP_SELF']), 'functions.inc') !== false) {
     die('This file can not be used on its own.');
 }
+
+global $_CONF, $_TABLES, $_DB_table_prefix;
 
 $pi_name    = 'hello';
 
 // database table names 
 $_TABLES['hello']               = $_DB_table_prefix . 'hello';
 $_TABLES['hello_queue']    = $_DB_table_prefix . 'hello_queue';
+$_TABLES['hello_stats']    = $_DB_table_prefix . 'hello_stats';
+$_TABLES['hello_urls_clicked'] = $_DB_table_prefix . 'hello_urls_clicked';
+$_TABLES['hello_links'] = $_DB_table_prefix . 'hello_links';
 	
 // path to the plugin
 $plugin_path = $_CONF['path'] . 'plugins/hello/';
@@ -80,6 +84,7 @@ function plugin_getadminoption_hello() {
     global $_CONF, $LANG_HELLO01, $_TABLES, $_SCRIPTS;
     
 	$blink = '';
+	$alert = '';
 	
     if (SEC_hasRights('hello.edit')) {
         if (SEC_hasRights('user.mail')) {
@@ -164,7 +169,7 @@ function plugin_autouninstall_hello ()
 {
     $out = array (
         /* give the name of the tables, without $_TABLES[] */
-        'tables' => array('hello', 'hello_queue'),
+        'tables' => array('hello', 'hello_queue', 'hello_stats', 'hello_urls_clicked', 'hello_links'),
         /* give the full name of the group, as in the db */
         'groups' => array('hello Admin'),
         /* give the full name of the feature, as in the db */
@@ -172,7 +177,7 @@ function plugin_autouninstall_hello ()
         /* give the full name of the block, including 'phpblock_', etc */
         'php_blocks' => array(),
         /* give all vars with their name */
-        'vars'=> array()
+        'vars'=> array('hello_hourly_count', 'hello_hourly_reset')
     );
 
     return $out;
@@ -202,14 +207,14 @@ function hello_templatePath ($path = '')
         }
     }
 
-    return $retval;
+    	return $retval;
 }
 
 // Update the hello plugin
 
 function plugin_upgrade_hello()
 {
-    global $_CONF, $_TABLES, $_DB_table_prefix;
+    global $_CONF, $_TABLES, $_DB_table_prefix, $_DB_dbms;
 
     $installed_version = DB_getItem($_TABLES['plugins'], 'pi_version',
                                     "pi_name = 'hello'");
@@ -221,36 +226,112 @@ function plugin_upgrade_hello()
     }
 
     require_once $_CONF['path'] . 'plugins/hello/autoinstall.php';
-	require_once $_CONF['path'] . 'plugins/hello/install_defaults.php';
-	require_once $_CONF['path_system'] . 'classes/config.class.php';
+    require_once $_CONF['path'] . 'plugins/hello/install_defaults.php';
+    require_once $_CONF['path_system'] . 'classes/config.class.php';
 
     if (! plugin_compatible_with_this_version_hello('hello')) {
         return 3002;
     }
-    
-    switch( $installed_version ) {
-        
-        case '1.0.0':
-            //rename db hello_file_envoi
-            DB_query("RENAME TABLE $_DB_table_prefix"."hello_file_envoi TO {$_TABLES['hello_queue']};");
-            
-            //upgrade config values
-            $c = config::get_instance();
-            $c->del('site_name', 'classifieds');
-            $c->del('hellologinrequired', 'hello');
-            $c->del('hidehellomenu', 'hello');
-            $c->del('showleftblocks1', 'hello');
-            $c->del('showrightblocks1', 'hello');	
-            $c->del('showleftblocks2', 'hello');
-            $c->del('showrightblocks2', 'hello');
-            
-            $c->add('max_email', $_HE_DEFAULT['max_email'],
-                'text', 0, 0, 0, 10, true, 'hello');
-            
-        case '2.0':
-        case '2.1':
-        case '2.1.1':
 
+    $update_file = $_CONF['path'] . 'plugins/hello/sql/' . $_DB_dbms . '_updates.php';
+    if (file_exists($update_file)) {
+        require_once $update_file;
+    }
+    
+    $install_updates_file = $_CONF['path'] . 'plugins/hello/install_updates.php';
+    if (file_exists($install_updates_file)) {
+        require_once $install_updates_file;
+    }
+
+    $current_version = $installed_version;
+    $done = false;
+    $current_config = false;
+    
+    while (! $done) {
+        switch( $current_version ) {
+            
+            case '1.0.0':
+                //rename db hello_file_envoi
+                DB_query("RENAME TABLE $_DB_table_prefix"."hello_file_envoi TO {$_TABLES['hello_queue']};");
+                
+                //upgrade config values
+                $c = config::get_instance();
+                $c->del('site_name', 'classifieds');
+                $c->del('hellologinrequired', 'hello');
+                $c->del('hidehellomenu', 'hello');
+                $c->del('showleftblocks1', 'hello');
+                $c->del('showrightblocks1', 'hello');	
+                $c->del('showleftblocks2', 'hello');
+                $c->del('showrightblocks2', 'hello');
+                
+                $c->add('max_email', $_HE_DEFAULT['max_email'],
+                    'text', 0, 0, 0, 10, true, 'hello');
+                    
+                $current_version = '2.0';
+                break;
+                
+            case '2.0':
+                $current_version = '2.1';
+                break;
+                
+            case '2.1':
+                $current_version = '2.1.1';
+                break;
+                
+            case '2.1.1':
+            case '2.1.2':
+                if (isset($_UPDATES[$current_version])) {
+                    $_SQL = $_UPDATES[$current_version];
+                    foreach ($_SQL as $sql) {
+                        DB_query($sql);
+                    }
+                }
+                
+                // Add status column for campaign pause/resume
+                $check_status = DB_query("SHOW COLUMNS FROM {$_TABLES['hello']} LIKE 'status'");
+                if (DB_numRows($check_status) == 0) {
+                    DB_query("ALTER TABLE {$_TABLES['hello']} ADD COLUMN status tinyint(1) NOT NULL DEFAULT 0");
+                }
+                
+                // Add strict_throttling (hourly_limit) if missing
+                require_once $_CONF['path_system'] . 'classes/config.class.php';
+                $c = config::get_instance();
+                if (!isset($_CONF['hello']['hourly_limit'])) {
+                    $c->add('hourly_limit', 150, 'text', 0, 0, 0, 20, true, 'hello', 0);
+                }
+                
+                $current_version = '2.1.3';
+                break;
+                
+            case '2.1.3':
+                $current_version = '2.1.4';
+                break;
+            case '2.1.4':
+                $current_version = '2.2.0';
+                break;
+                
+            case '2.2.0':
+                if (isset($_UPDATES['2.2.0'])) {
+                    foreach ($_UPDATES['2.2.0'] as $sql) {
+                        DB_query($sql);
+                    }
+                }
+
+                $c = config::get_instance();
+                $c->add('track_clicks', 1, 'select', 0, 0, 0, 30, true, 'hello');
+                $c->add('track_opens', 1, 'select', 0, 0, 0, 40, true, 'hello');
+
+                $current_version = '2.2.1';
+                break;
+
+            case '2.2.1':
+                $done = true;
+                break;
+                
+            default:
+                $done = true;
+                break;
+        }
     }
 
     // update plugin version number
@@ -258,12 +339,6 @@ function plugin_upgrade_hello()
     $pi_gl_version = $inst_parms['info']['pi_gl_version'];
 
     DB_query("UPDATE {$_TABLES['plugins']} SET pi_version = '$code_version', pi_gl_version = '$pi_gl_version' WHERE pi_name = 'hello'");
-    
-    /* This code is for statistics ONLY */
-    $message =  'Completed hello plugin upgrade: ' . date('m d Y',time()) . "   AT " . date('H:i', time()) . "\n";
-    $message .= 'Site: ' . $_CONF['site_url'] . ' and Sitename: ' . $_CONF['site_name'] . "\n";
-    COM_mail("ben@geeklog.fr","Updated hello plugin from v$installed_version to v$code_version",$message);
-
     return true;
 }
 
@@ -275,36 +350,45 @@ function plugin_upgrade_hello()
  * @return string HTML of admin menu
  * @todo add support for pending (physical) transaction, not fully implemented
  */
-function hello_admin_menu() {
+function hello_admin_menu($title = '', $instructions = '', $icon = '') {
     global $_CONF, $_TABLES, $LANG_HELLO01;
+    require_once $_CONF['path_system'] . 'lib-admin.php';
 
-    $display = COM_startBlock($LANG_HELLO01['menu_label']);
+    if (empty($title)) {
+        $title = $LANG_HELLO01['block_headline'];
+    }
 
-    // generate the menu from the template
-    $menu = new Template($_CONF['path'] . 'plugins/hello/templates/admin');
-    $menu->set_file(array('menu' => 'admin_menu.thtml'));
-    $menu->set_var('site_url', $_CONF['site_url']);
-    $menu->set_var('homepage_label', $LANG_HELLO01['homepage_label']);
-    $menu->set_var('send_email_group', $LANG_HELLO01['send_email_group']);
-    $menu->set_var('read_email', $LANG_HELLO01['read_email']);
-    $menu->set_var('manual', $LANG_HELLO01['manual']);
-	
-	$configuration = "<a href=\"#\" onclick=\"document.hello_conf_link.submit()\">{$LANG_HELLO01['configuration']}</a>
-    <form name='hello_conf_link' action='{$_CONF['site_admin_url']}/configuration.php' method='POST'>
-    <input type='hidden' name='conf_group' value='hello'></form>";
+    $display = COM_startBlock($title, '', COM_getBlockTemplate('_admin_block', 'header'));
+
+    $menu_arr = array(
+        array('url'  => $_CONF['site_admin_url'] . '/plugins/hello/index.php',
+              'text' => $LANG_HELLO01['homepage_label']),
+        array('url'  => $_CONF['site_admin_url'] . '/plugins/hello/email_group.php',
+              'text' => $LANG_HELLO01['send_email_group']),
+        array('url'  => $_CONF['site_admin_url'] . '/plugins/hello/read_email.php',
+              'text' => $LANG_HELLO01['read_email']),
+        array('url'  => $_CONF['site_admin_url'] . '/plugins/hello/subscribers.php',
+              'text' => $LANG_HELLO01['crm_dashboard']),
+        array('url'  => $_CONF['site_admin_url'] . '/plugins/hello/manual.php',
+              'text' => $LANG_HELLO01['manual']),
+        array('url'  => $_CONF['site_admin_url'] . '/plugins/hello/bounces.php',
+              'text' => $LANG_HELLO01['bounces']),
+        array('url'  => $_CONF['site_admin_url'] . '/configuration.php?conf_group=hello',
+              'text' => $LANG_HELLO01['configuration'])
+    );
     
-	$menu->set_var('configuration', $configuration);
-	
-    $display .= $menu->parse('output', 'menu');
+    if (empty($icon)) {
+        $icon = $_CONF['site_admin_url'] . '/plugins/hello/images/hello.png';
+    }
+    
+    $display .= ADMIN_createMenu($menu_arr, $instructions, $icon);
 
-    $display .= COM_endBlock();
-
-    // return results
     return $display;
 }
 
 function HELLO_undoSpecialChars( $string )
 {
+    $string = (string) $string;
     $string = str_replace( '&#36;',     '$', $string );
     $string = str_replace( '&#123;',    '{', $string );
     $string = str_replace( '&#125;',    '}', $string );
@@ -314,253 +398,319 @@ function HELLO_undoSpecialChars( $string )
     $string = str_replace( '&nbsp;',    ' ', $string );
     $string = str_replace( '&amp;',     '&', $string );
     $string = str_replace( '&Agrave;',  'A', $string );
-    $string = str_replace( '&agrave;',  '�', $string );
+    $string = str_replace( '&agrave;',  'Ã ', $string );
     $string = str_replace( '&Acirc;',   'A', $string );
-    $string = str_replace( '&acirc;',   '�', $string );
+    $string = str_replace( '&acirc;',   'Ã¢', $string );
     $string = str_replace( '&Ccedil;',  'C', $string );
-    $string = str_replace( '&ccedil;',  '�', $string );
+    $string = str_replace( '&ccedil;',  'Ã§', $string );
     $string = str_replace( '&Egrave;',  'E', $string );
-    $string = str_replace( '&egrave;',  '�', $string );
+    $string = str_replace( '&egrave;',  'Ã¨', $string );
     $string = str_replace( '&Eacute;',  'E', $string );
-    $string = str_replace( '&eacute;',  '�', $string );
+    $string = str_replace( '&eacute;',  'Ã©', $string );
     $string = str_replace( '&Ecirc;',   'E', $string );
-    $string = str_replace( '&ecirc;',   '�', $string );
+    $string = str_replace( '&ecirc;',   'Ãª', $string );
     $string = str_replace( '&Euml;',    'E', $string );
-    $string = str_replace( '&euml;',    '�', $string );
+    $string = str_replace( '&euml;',    'Ã«', $string );
     $string = str_replace( '&Icirc;',   'I', $string );
-    $string = str_replace( '&icirc;',   '�', $string );
+    $string = str_replace( '&icirc;',   'Ã®', $string );
     $string = str_replace( '&Iuml;',    'I', $string );
-    $string = str_replace( '&iuml;',    '�', $string );
+    $string = str_replace( '&iuml;',    'Ã¯', $string );
     $string = str_replace( '&Ocirc;',   'O', $string );
-    $string = str_replace( '&ocirc;',   '�', $string );
+    $string = str_replace( '&ocirc;',   'Ã´', $string );
     $string = str_replace( '&OElig;',  'OE', $string );
     $string = str_replace( '&oelig;',  'oe', $string );
     $string = str_replace( '&Ugrave;',  'U', $string );
-    $string = str_replace( '&ugrave;',  '�', $string );
+    $string = str_replace( '&ugrave;',  'Ã¹', $string );
     $string = str_replace( '&Ucirc;',   'U', $string );
-    $string = str_replace( '&ucirc;',   '�', $string );
+    $string = str_replace( '&ucirc;',   'Ã»', $string );
     $string = str_replace( '&Uuml;',    'U', $string );
-    $string = str_replace( '&uuml;',    '�', $string );
+    $string = str_replace( '&uuml;',    'Ã¼', $string );
     $string = str_replace( '&#376;',    'Y', $string );
-    $string = str_replace( '&yuml;',    '�', $string );
+    $string = str_replace( '&yuml;',    'Ã¿', $string );
     $string = str_replace( '&rsquo;',  '\'', $string );
  
     return( $string );
 }
 
-/**
-* Send an email.
-*
-* All emails sent by hello plugin are sent through this function.
-*
-* NOTE: Please note that using CC: will expose the email addresses of
-*       all recipients. Use with care.
-*
-* @param    string      $to         recipients name and email address
-* @param    string      $subject    subject of the email
-* @param    string      $message    the text of the email
-* @param    string      $from       (optional) sender of the the email
-* @param    boolean     $html       (optional) true if to be sent as HTML email
-* @param    int         $priority   (optional) add X-Priority header, if > 0
-* @param    mixed       $optional   (optional) other headers or CC:
-* @return   boolean                 true if successful,  otherwise false
-*
-*/
-function HELLO_mail($to, $subject, $message, $from = '', $html = false, $priority = 0, $optional = null, $alternate ='')
+function HELLO_send_hello($manual = false) {
+    global $_CONF, $_TABLES, $_USER, $LANG_HELLO01, $_HE_CONF;
+
+    $results = 0;
+    $sujet = '';
+    $h = 0;
+
+    set_time_limit(260);
+    $heure_script = date('YmdHi', time());
+    
+    $hourly_limit = isset($_HE_CONF['hourly_limit']) ? (int) $_HE_CONF['hourly_limit'] : 150;
+    $current_time = time();
+    $reset_time = (int) DB_getItem($_TABLES['vars'], 'value', "name='hello_hourly_reset'");
+    $count = (int) DB_getItem($_TABLES['vars'], 'value', "name='hello_hourly_count'");
+    
+    if (empty($reset_time) || $current_time > $reset_time) {
+        $reset_time = $current_time + 3600;
+        DB_query("REPLACE INTO {$_TABLES['vars']} (name, value) VALUES ('hello_hourly_reset', '$reset_time')");
+        DB_query("REPLACE INTO {$_TABLES['vars']} (name, value) VALUES ('hello_hourly_count', '0')");
+        $count = 0;
+    }
+    
+    $allowed_to_send = $hourly_limit - $count;
+    
+    if ($allowed_to_send <= 0) {
+        return ($manual) ? '<p>' . sprintf($LANG_HELLO01['hourly_quota_reached'], $hourly_limit) . '</p>' : null;
+    }
+    
+    $max_email_pref = isset($_HE_CONF['max_email']) ? (int) $_HE_CONF['max_email'] : 10;
+    $batch_size = min($max_email_pref, $allowed_to_send);
+
+    $sql = "SELECT q.* FROM {$_TABLES['hello_queue']} q "
+         . "INNER JOIN {$_TABLES['hello']} h ON q.hello_id = h.hello_id "
+         . "WHERE q.creation <= " . $heure_script . " AND h.status = 0 "
+         . "ORDER BY q.uid ASC, q.creation ASC LIMIT 0, $batch_size";
+
+    $res = DB_query($sql);
+    $successful_ids = array();
+
+    while ($A = DB_fetchArray($res)) {
+        if ($sujet != '' && $A['subject'] != $sujet) {
+            COM_errorLog($sujet . ' | ' . $LANG_HELLO01['hello_sent'] . ' ' . $results . ' ' . $LANG_HELLO01['contacts']);
+        }
+
+        $destinataire = $A['destinataire'];
+        $sujet = $A['subject'];
+        $message = $A['content'];
+
+        $html = true;
+        $priority = isset($A['priority']) ? (int) $A['priority'] : 0;
+        $from = isset($A['expediteur']) ? $A['expediteur'] : '';
+
+        $uid = isset($A['uid']) ? (int)$A['uid'] : 0;
+        $hello_id = isset($A['hello_id']) ? (int)$A['hello_id'] : 0;
+        $hash = MD5($destinataire."fFersh66");
+        $unsubscribe_url = $_CONF['site_url'] . '/hello/unsubscribe.php?h=' . $hash . '&u=' . $uid . '&hid=' . $hello_id;
+        
+        if ($uid > 1) {
+            $userinfo = DB_fetchArray(DB_query("SELECT username, fullname FROM {$_TABLES['users']} WHERE uid = $uid"));
+            $username = $userinfo['username'];
+            $fullname = empty($userinfo['fullname']) ? $userinfo['username'] : $userinfo['fullname'];
+            $message = str_replace(array('[USERNAME]', '[FULLNAME]'), array($username, $fullname), $message);
+        }
+        
+        $track_clicks = !isset($_HE_CONF['track_clicks']) || (bool) $_HE_CONF['track_clicks'];
+        if ($track_clicks) {
+            $message = HELLO_rewriteTrackedLinks($message, $hello_id, $uid);
+        }
+
+        $message = HELLO_prepareHtmlForEmail($message);
+        
+        $optional = array(
+            'List-Unsubscribe' => '<' . $unsubscribe_url . '>',
+            'List-Unsubscribe-Post' => 'List-Unsubscribe=One-Click'
+        );
+
+        $result = HELLO_mail($destinataire, $sujet, $message, $from, $html, $priority, $optional);
+
+        if ($result) {
+            $results++;
+            $successful_ids[] = (int) $A['id'];
+            
+            if ($hello_id > 0 && $uid > 1) {
+                DB_query("INSERT INTO {$_TABLES['hello_stats']} (hello_id, uid, sent) VALUES ($hello_id, $uid, 1) ON DUPLICATE KEY UPDATE sent = 1");
+            }
+        } else {
+            COM_errorLog('Hello plugin - Error sending email to ' . $destinataire, 1);
+        }
+        $h++;
+    }
+
+    if (!empty($successful_ids)) {
+        $id_list = implode(',', $successful_ids);
+        DB_query("DELETE FROM {$_TABLES['hello_queue']} WHERE id IN ($id_list)");
+        
+        $new_count = $count + $results;
+        DB_query("REPLACE INTO {$_TABLES['vars']} (name, value) VALUES ('hello_hourly_count', '$new_count')");
+    }
+
+    if ($manual) {
+        return '<p>' . $results . ' ' . $LANG_HELLO01['email_sent'] . '</p>';
+    }
+}
+
+function HELLO_prepareHtmlForEmail($html)
+{
+    $html = str_replace(array("\r\n", "\r"), "\n", (string) $html);
+    $html = preg_replace('/>\s*</', ">\r\n<", $html);
+    return $html;
+}
+
+function HELLO_createClickToken($url, $hello_id, $uid)
+{
+    global $_TABLES;
+
+    $hello_id = (int) $hello_id;
+    $uid = (int) $uid;
+    $url = html_entity_decode((string) $url, ENT_QUOTES, 'UTF-8');
+
+    if ($hello_id <= 0 || $uid <= 1 || !filter_var($url, FILTER_VALIDATE_URL)) {
+        return '';
+    }
+
+    $scheme = strtolower((string) parse_url($url, PHP_URL_SCHEME));
+    if ($scheme !== 'http' && $scheme !== 'https') {
+        return '';
+    }
+
+    for ($i = 0; $i < 5; $i++) {
+        if (function_exists('random_bytes')) {
+            try {
+                $token = bin2hex(random_bytes(16));
+            } catch (Exception $e) {
+                $token = '';
+            }
+        } else {
+            $token = '';
+        }
+
+        if ($token === '') {
+            if (function_exists('openssl_random_pseudo_bytes')) {
+                $bytes = openssl_random_pseudo_bytes(16);
+                if ($bytes !== false) {
+                    $token = bin2hex($bytes);
+                }
+            }
+        }
+
+        if ($token === '') {
+            $token = md5(uniqid((string) mt_rand(), true) . microtime(true));
+        }
+
+        $safe_token = DB_escapeString($token);
+        $exists = DB_getItem($_TABLES['hello_links'], 'link_id', "token = '$safe_token'");
+        if (empty($exists)) {
+            $safe_url = DB_escapeString($url);
+            $created = date('Y-m-d H:i:s');
+            DB_query("INSERT INTO {$_TABLES['hello_links']} (token, hello_id, uid, url, created) "
+                . "VALUES ('$safe_token', $hello_id, $uid, '$safe_url', '$created')");
+            if (!DB_error()) {
+                return $token;
+            }
+        }
+    }
+
+    return '';
+}
+
+function HELLO_rewriteTrackedLinks($html, $hello_id, $uid)
 {
     global $_CONF;
 
-    static $mailobj;
+    $cache = array();
 
-    if (empty($from)) {
-        $from = COM_formatEmailAddress($_CONF['site_name'], $_CONF['site_mail']);
+    return preg_replace_callback("/href=([\'\"])(https?:\/\/[^\'\"]+)\\1/i",
+        function ($matches) use ($hello_id, $uid, $_CONF, &$cache) {
+            $url = html_entity_decode($matches[2], ENT_QUOTES, 'UTF-8');
+
+            if (strpos($url, '/hello/unsubscribe.php') !== false
+                || strpos($url, '/hello/track.php') !== false
+                || strpos($url, '/hello/click.php') !== false) {
+                return $matches[0];
+            }
+
+            if (!isset($cache[$url])) {
+                $cache[$url] = HELLO_createClickToken($url, $hello_id, $uid);
+            }
+
+            if ($cache[$url] === '') {
+                return $matches[0];
+            }
+
+            $tracked = $_CONF['site_url'] . '/hello/click.php?t=' . rawurlencode($cache[$url]);
+            return 'href="' . htmlspecialchars($tracked, ENT_QUOTES, 'UTF-8') . '"';
+        }, $html);
+}
+
+function HELLO_tagToPlain ($content)
+{
+    $content = (string) $content;
+    if (empty($content)) {
+        return '';
     }
-
-    $to = substr($to, 0, strcspn($to, "\r\n"));
-	
-	if ($to == '') return false;
-	
-    if (($optional != null) && !is_array($optional)) {
-        $optional = substr($optional, 0, strcspn($optional, "\r\n"));
-    }
-    $from = substr($from, 0, strcspn($from, "\r\n"));
-    $subject = substr($subject, 0, strcspn($subject, "\r\n"));
-    $subject = COM_emailEscape($subject);
-	$subject = utf8_decode($subject);
-
-    include_once 'Mail.php';
-    include_once 'Mail/RFC822.php';
-
-    $method = $_CONF['mail_settings']['backend'];
-
-    if (! isset($mailobj)) {
-        if (($method == 'sendmail') || ($method == 'smtp')) {
-            $mailobj =& Mail::factory($method, $_CONF['mail_settings']);
-        } else {
-            $method = 'mail';
-            $mailobj =& Mail::factory($method);
-        }
-    }
-
-    $charset = COM_getCharset();
-    $headers = array();
-
-    $headers['From'] = $from;
-    if ($method != 'mail') {
-        $headers['To'] = $to;
-    }
-    if (($optional != null) && !is_array($optional) && !empty($optional)) {
-        // assume old (optional) CC: header
-        $headers['Cc'] = $optional;
-    }
-    $headers['Date'] = date('r'); // RFC822 formatted date
-    if($method == 'smtp') {
-        list($usec, $sec) = explode(' ', microtime());
-        $m = substr($usec, 2, 5);
-        $headers['Message-Id'] = '<' .  date('YmdHis') . '.' . $m
-                               . '@' . $_CONF['mail_settings']['host'] . '>';
-    }
-	
-	$headers['Subject'] = $subject;
-    if ($priority > 0) {
-        $headers['X-Priority'] = $priority;
-    }
-    $headers['X-Mailer'] = 'Geeklog ' . VERSION;
-
-    if (!empty($_SERVER['REMOTE_ADDR']) && !empty($_SERVER['SERVER_ADDR']) &&
-            ($_SERVER['REMOTE_ADDR'] != $_SERVER['SERVER_ADDR'])) {
-        $url = COM_getCurrentURL();
-        if (substr($url, 0, strlen($_CONF['site_admin_url']))
-                != $_CONF['site_admin_url']) {
-            $headers['X-Originating-IP'] = $_SERVER['REMOTE_ADDR'];
-        }
-    }
-
-    // add optional headers last
-    if (($optional != null) && is_array($optional)) {
-        foreach ($optional as $h => $v) {
-            $headers[$h] = $v;
-        }
-    }
-	
-    if ($html) {
-        # Setup mime boundary
-		$mime_boundary = 'Multipart_Boundary_x'.md5(time()).'x';
-		
-		//$headers['Content-Type'] = 'text/html; charset=' . $charset;
-		$headers['Content-Type'] = 'multipart/alternative; boundary=' . $mime_boundary;
-        $headers['Content-Transfer-Encoding'] = '8bit';
-		$body	 = "This is a multi-part message in mime format.\n\n";
-		$body	.= "--$mime_boundary\n";
-
-		$headers['MIME-Version'] = "1.0\r\n";
-
-		$body	 = "This is a multi-part message in mime format.\n\n";
-
-		# Add in plain text version
-		$body	.= "--$mime_boundary\n";
-		$body	.= "Content-Type: text/plain; charset=\"charset=$charset\"\n";
-		$body	.= "Content-Transfer-Encoding: 8bit\n\n";
-		$body	.= $alternate;
-		$body	.= "\n\n";
-
-		# Add in HTML version
-		$body	.= "--$mime_boundary\n";
-		$body	.= "Content-Type: text/html; charset=\"$charset\"\n";
-		$body	.= "Content-Transfer-Encoding: 8bit\n\n";
-		$body	.= $message;
-		$body	.= "\n\n";
-
-		# Attachments would go here
-		# But this whole email thing should be turned into a class to more logically handle attachments, 
-		# this function is fine for just dealing with html and text content.
-
-		# End email
-		$body	.= "--$mime_boundary--\n"; # <-- Notice trailing --, required to close email
-
-    } else {
-        $headers['Content-Type'] = 'text/plain; charset=' . $charset;
-    }
-
-    $retval = $mailobj->send($to, $headers, $body);
     
-	if ($retval !== true) {
-         COM_errorLog('Hello plugin - Error sending email to ' . $to . ' | ' . $retval->toString(), 1);
+    $dom = new DOMDocument();
+    @$dom->loadHTML(htmlspecialchars($content));
+
+    $anchors = $dom->getElementsByTagName('a');
+    $len = $anchors->length;
+
+    if ( $len > 0 ) {
+        $i = $len-1;
+        while ( $i > -1 ) {
+        $anchor = $anchors->item( $i );
+
+        if ( $anchor->hasAttribute('href') ) {
+            $href = $anchor->getAttribute('href');
+            $regex = '/^http/';
+
+            if ( !preg_match ( $regex, $href ) ) { 
+            $i--;
+            continue;
+            }
+
+            $text = $anchor->nodeValue;
+            $textNode = $dom->createTextNode( $text . ' ' . $href);
+
+            $strong = $dom->createElement('a');
+            $strong->appendChild( $textNode );
+
+            $anchor->parentNode->replaceChild( $strong, $anchor );
+        }
+        $i--;
+        }
     }
 
-    return($retval === true ? true : false);
+    $altBody = $dom->saveHTML();
+    $altBody = str_replace(array("<p>", "</p>", "<br/>"), "\r\n", $altBody);
+    $altBody  =  HELLO_undoSpecialChars( strip_tags($altBody ));
+	$altBody  =  preg_replace('/\n(\s*\n){2,}/', "\n\n", $altBody);
+    return $altBody;
 }
 
-function HELLO_send_hello ($manual=false) 
+function HELLO_emailUserTopics($online=true, $test_mode=false)
 {
-    global $_CONF, $_TABLES, $_USER, $LANG_HELLO01, $_HE_CONF;
-	
-	$retval = '';
-    $results = 0;
-    $falses = 0;
-	$sujet = '';
-
-    set_time_limit (260);
-
-    $heure_script = date ('YmdHi', time ());
-	
-    $sql ="SELECT * FROM {$_TABLES['hello_queue']} WHERE date <= " . $heure_script . " limit 0,{$_HE_CONF['max_email']}";
-	$res = DB_query($sql);
-	$liste_destinataire = array();
-	
-	while ($A = DB_fetchArray($res))
-	{
-		//separate subject
-		if ($sujet != '' && $A['subject'] != $sujet) {
-		    COM_errorLog($sujet . ' | ' . $LANG_HELLO01['hello_sent'] . ' ' . $results  . ' ' . $LANG_HELLO01['contacts']);
-			$results = 0;
-			$falses = 0;
-			
-		}
-		$destinataire = $A['destinataire'];
-		$sujet = $A['subject'];
-		$message = stripslashes($A['content']);
-		$html = true;
-		$priority = $A['priority'];
-		$altBody  =  HELLO_undoSpecialChars( strip_tags($message) );
-		$altBody  =  preg_replace('/\n(\s*\n){2,}/', "\n\n", $altBody);
-		
-		// Delete hello
-		DB_query("DELETE FROM {$_TABLES['hello_queue']} WHERE id='" . $A['id'] . "' ");
-		
-		// Send email
-		$result = HELLO_mail($destinataire, $sujet, $message, $from, $html, $priority, '', $altBody);
-        ($result) ? $results ++ : $falses ++;
-	}
-	// Optimisation
-	DB_query("OPTIMIZE TABLE {$_TABLES['hello_queue']}");
-	
-	if ($sujet!= '') COM_errorLog($sujet . ' | ' . $LANG_HELLO01['hello_sent'] . ' ' . $results  . ' ' . $LANG_HELLO01['contacts']);
-	
-	if ($manual) return '<ul><li>' . $results . ' ' . $LANG_HELLO01['email_sent'] . '<li>' . $falses . ' ' . $LANG_HELLO01['email_fail'] . '</ul>';
-}
-
-/**
-* This will email new stories in the topics that the user is interested in
-*
-* In account information the user can specify which topics for which they
-* will receive any new article for in a daily digest.
-*
-* @return   void
-*/
- 
-function HELLO_emailUserTopics($online=true)
-{
-    global $_CONF, $_TABLES, $LANG08, $LANG24, $LANG_HELLO01;
+    global $_CONF, $_TABLES, $LANG04, $LANG08, $LANG24, $LANG_HELLO01, $_USER;
  
     $subject = addslashes(strip_tags( '[' . $_CONF['site_name'] . '] ' . $LANG08[30] . strftime( $_CONF['shortdate'], time() )));
+    
+    if ($test_mode) {
+        $subject = '[TEST] ' . $subject;
+    }
  
     $authors = array();
+    $nrows = 0;
+    $nsrows = 0;
+    $successes = 0;
+    $failures = 0;
  
-    // Get users who want stories emailed to them
-    $usersql = "SELECT username,email,etids,{$_TABLES['users']}.uid AS uuid "
-        . "FROM {$_TABLES['users']}, {$_TABLES['userindex']} "
-        . "WHERE {$_TABLES['users']}.uid > 1 AND {$_TABLES['userindex']}.uid = {$_TABLES['users']}.uid AND (etids <> '-' OR etids IS NULL) ORDER BY {$_TABLES['users']}.uid";
+    if ($test_mode) {
+        $usersql = "SELECT DISTINCT uid AS uuid, username, fullname, email, '' AS etids FROM {$_TABLES['users']} WHERE uid = {$_USER['uid']}";
+    } else {
+        $prefs_table = isset($_TABLES['user_attributes']) ? $_TABLES['user_attributes'] : $_TABLES['userprefs'];
+        
+        $has_etids = false;
+        $check_res = DB_query("SHOW COLUMNS FROM {$prefs_table} LIKE 'etids'", 1);
+        if ($check_res && DB_numRows($check_res) > 0) {
+            $has_etids = true;
+        }
+
+        $etids_select = $has_etids ? ", etids" : ", '' AS etids";
+        $etids_where  = $has_etids ? " AND (etids <> '-' OR etids IS NULL)" : "";
+
+        $usersql = "SELECT DISTINCT {$_TABLES['users']}.uid AS uuid, username, fullname, email{$etids_select} "
+            . "FROM {$_TABLES['users']}, {$prefs_table} "
+            . "WHERE {$_TABLES['users']}.uid > 1 AND {$_TABLES['users']}.status = 3 AND {$_TABLES['users']}.email <> '' "
+            . "AND {$prefs_table}.uid = {$_TABLES['users']}.uid "
+            . "AND emailfromadmin = 1{$etids_where} ORDER BY {$_TABLES['users']}.uid";
+    }
  
     $users = DB_query( $usersql );
     $nrows = DB_numRows( $users );
@@ -571,33 +721,42 @@ function HELLO_emailUserTopics($online=true)
     $result = DB_query ($sql);
     $count = DB_numRows ($result);
 	
-	//record hello
+    if (!$test_mode) {
+	    DB_query( "UPDATE {$_TABLES['vars']} SET value = NOW() WHERE name = 'lastemailedstories'" );
+    }
+	
 	$creation = date ('YmdHi', time ());
 	($online) ? $email_group = $LANG_HELLO01['mdigest'] : $email_group = $LANG_HELLO01['ddigest'];
-	$quantity = $nrows;
+	$quantity = 0;
 
 	$content  = addslashes(sprintf ($LANG_HELLO01['num_stories_digest'] . ' > ' . $lastrun, $count));
 	
-	$sql_ajout_hello = "INSERT INTO {$_TABLES['hello']} (subject, creation, email_group, quantity, content) VALUES ('$subject', '$creation', '$email_group', '$quantity','$content')";
-	DB_query ($sql_ajout_hello);
-	$new_hello_id = DB_insertId();
+	if (!$test_mode) {
+	    $sql_ajout_hello = "INSERT INTO {$_TABLES['hello']} (subject, creation, email_group, quantity, content) VALUES ('$subject', '$creation', '$email_group', '$quantity','$content')";
+	    DB_query ($sql_ajout_hello);
+	    $new_hello_id = DB_insertId();
+	} else {
+	    $new_hello_id = 0;
+	}
  
-    // For each user, pull the stories they want and email it to them
 	$successes = 0;
     $failures = 0;
 	
-    for( $x = 1; $x <= $nrows; $x++ )
+	for( $x = 1; $x <= $nrows; $x++ )
     {
         $U = DB_fetchArray( $users );
+		
+		if ($U['email'] == '') {
+		    $failures = $failures + 1;
+			continue;
+		}
  
         $storysql = array();
-        $storysql['mysql'] = "SELECT sid,uid,date AS day,title,introtext,bodytext";
+        $storysql['mysql'] = "SELECT DISTINCT sid,uid,date AS day,title,introtext,bodytext,postmode";
  
-        $storysql['mssql'] = "SELECT sid,uid,date AS day,title,CAST(introtext AS text) AS introtext,CAST(bodytext AS text) AS introtext";
- 
-        $commonsql = " FROM {$_TABLES['stories']}, {$_TABLES['topic_assignments']} ta
+        $commonsql = " FROM {$_TABLES['stories']} s, {$_TABLES['topic_assignments']} ta
             WHERE draft_flag = 0 AND date <= NOW() AND date >= '{$lastrun}'
-            AND ta.type = 'article' AND ta.id = sid ";
+            AND ta.type = 'article' AND ta.id = sid";
  
         $topicsql = "SELECT tid FROM {$_TABLES['topics']}"
                   . COM_getPermSQL( 'WHERE', $U['uuid'] );
@@ -606,7 +765,6 @@ function HELLO_emailUserTopics($online=true)
  
         if( $trows == 0 )
         {
-            // this user doesn't seem to have access to any topics ...
             continue;
         }
  
@@ -624,35 +782,43 @@ function HELLO_emailUserTopics($online=true)
         }
  
         if( sizeof( $TIDS ) > 0)
-        {// We have list of Daily Digest topic ids that user has access too and that the user wants a report on
+        {
              $commonsql .= " AND (ta.tid IN ('" . implode( "','", $TIDS ) . "'))";
         }
  
-        $commonsql .= COM_getPermSQL( 'AND', $U['uuid'] );
-        $commonsql .= ' ORDER BY featured DESC, date DESC';
+        $commonsql .= COM_getPermSQL( 'AND', $U['uuid'],2,'s' );
+        $commonsql .= ' ORDER BY date DESC';
  
         $storysql['mysql'] .= $commonsql;
-        $storysql['mssql'] .= $commonsql;
  
         $stories = DB_query( $storysql );
         $nsrows = DB_numRows( $stories );
  
         if( $nsrows == 0 )
         {
-            // If no new stories where pulled for this user, continue with next
             continue;
         }
- 
-        $mailtext = $LANG08[29] . strftime( $_CONF['shortdate'], time() ) . "<br />";
- 
-        for( $y = 0; $y < $nsrows; $y++ )
+        
+        $display_name = !empty($U['fullname']) ? $U['fullname'] : $U['username'];
+        
+        $mailtext = '<!DOCTYPE html><html><body style="margin:0; padding:0; background-color:#f4f4f4;">';
+        $mailtext .= '<div style="background-color:#f4f4f4; padding:20px; font-family: sans-serif;">';
+        $mailtext .= '<div style="max-width:600px; margin:0 auto; background-color:#ffffff; border-radius:8px; overflow:hidden; box-shadow:0 2px 5px rgba(0,0,0,0.1);">';
+        $mailtext .= '<div style="background-color:#2c3e50; padding:25px 20px; text-align:center; color:#ffffff;">';
+        $mailtext .= '<h1 style="margin:0; font-size:28px; letter-spacing:1px;">' . $_CONF['site_name'] . '</h1>';
+        $mailtext .= '</div>';
+        $mailtext .= '<div style="padding:30px; color:#333333; line-height:1.6;">';
+        $mailtext .= '<p style="font-size:15px; color:#555;">' . sprintf($LANG_HELLO01['digest_intro_email'], '<strong>' . HELLO_undoSpecialChars(stripslashes($display_name)) . '</strong>', '<strong>' . $_CONF['site_name'] . '</strong>') . '</p>';
+  
+		for( $y = 0; $y < $nsrows; $y++ )
         {
-            // Loop through stories building the requested email message
             $S = DB_fetchArray( $stories );
  
-            $mailtext .= "<br />------------------------------<br /><br />";
-            $mailtext .= "$LANG08[31]: "
-                . HELLO_undoSpecialChars( stripslashes( $S['title'] )) . "<br />";
+            $mailtext .= '<div style="border-bottom: 1px solid #eeeeee; padding: 20px 0;">';
+            $story_url = COM_buildUrl( $_CONF['site_url'] . '/article.php/' . $S['sid'] );
+            $mailtext .= '<h2 style="margin: 0 0 5px 0; font-size: 20px;"><a href="' . $story_url . '" style="color: #2980b9; text-decoration: none;">' . HELLO_undoSpecialChars( stripslashes( $S['title'] )) . '</a></h2>';
+			
+			$storyauthor = '';
             if( $_CONF['contributedbyline'] == 1 )
             {
                 if( empty( $authors[$S['uid']] ))
@@ -664,69 +830,134 @@ function HELLO_emailUserTopics($online=true)
                 {
                     $storyauthor = $authors[$S['uid']];
                 }
-                $mailtext .= "$LANG24[7]: " . $storyauthor . "<br />";
             }
- 
-            $mailtext .= "$LANG08[32]: " . strftime( $_CONF['date'], strtotime( $S['day' ])) . "<br /><br />";
- 
-            if( $_CONF['emailstorieslength'] > 0 )
+            $auth_text = $storyauthor ? ' - ' . $storyauthor : '';
+            $mailtext .= '<p style="margin: 0 0 15px 0; font-size: 12px; color: #7f8c8d;">' . strftime( $_CONF['date'], strtotime( $S['day' ])) . $auth_text . '</p>';
+			
+			if( $_CONF['emailstorieslength'] > 0 )
             {
                 if($S['postmode']==='wikitext'){
                     $storytext = HELLO_undoSpecialChars( strip_tags( COM_renderWikiText ( stripslashes( $S['introtext'] ))));
                 } else {
-                    $storytext = $S['introtext'];
+                    $storytext = stripslashes($S['introtext']);
                 }
  
                 if( $_CONF['emailstorieslength'] > 1 )
                 {
-                    $storytext = $S['introtext'] . "<br /><br />" . $S['bodytext'] ;
+                    $storytext .= "<br /><br />" . stripslashes($S['bodytext']);
                 }
+                
+                $site_url = rtrim($_CONF['site_url'], '/');
+                $storytext = preg_replace('/(src|href)="\/([^"]*)"/i', '$1="' . $site_url . '/$2"', $storytext);
  
-                $mailtext .= $storytext . "<br /><br />";
+                $mailtext .= '<div style="font-size:14px; margin-bottom:15px;">' . $storytext . '</div>';
             }
  
-            $mailtext .= $LANG08[33] . ' ' . COM_buildUrl( $_CONF['site_url']
-                      . '/article.php?story=' . $S['sid'] ) . "<br />";
+            $mailtext .= '<div><a href="' . $story_url . '" style="display:inline-block; padding:8px 15px; background-color:#2980b9; color:#ffffff; text-decoration:none; border-radius:4px; font-size:13px;">' . $LANG_HELLO01['read_article'] . stripslashes($S['title']) . '</a></div>';
+            $mailtext .= '</div>';
         }
+        
+        $mailtext .= '</div>';
  
-        $mailtext .= "<br />------------------------------<br />";
-        $mailtext .= "<br />$LANG08[34]<br />";
-        $mailtext .= "<br />------------------------------<br />";
- 
-        $mailto = $U['username'] . ' <' . $U['email'] . '>';
+        $mailto = addslashes($U['email']);
  
         if ($_CONF['site_mail'] !== $_CONF['noreply_mail']) {
-            $mailfrom = $_CONF['noreply_mail'];
-            $mailtext .= LB . LB . $LANG04[159];
+            $mailfrom = $_CONF['site_mail'];
         } else {
             $mailfrom = $_CONF['site_mail'];
         }
+		
+        $explication = '<div style="background-color:#f9f9f9; padding:20px; text-align:center; font-size:12px; color:#95a5a6; border-top:1px solid #eeeeee;">';
+        $explication .= sprintf($LANG_HELLO01['why_email'], $_CONF['site_name']);
+
+        if ($test_mode) {
+            $explication .= '<br><strong>' . $LANG_HELLO01['test_email_footer'] . '</strong><br>';
+            $maillink = HELLO_unsubscribeLink($U['uuid'], $U['email'], 0, true);
+            $maillink = str_replace('</td></tr></table>', '</div></div></div></body></html>', $maillink);
+        } else {
+            $explication .= ' &bull; ';
+            $maillink = HELLO_unsubscribeLink($U['uuid'], $U['email'], $new_hello_id);
+            $maillink = str_replace('</td></tr></table>', '</div></div></div></body></html>', $maillink);
+        }
+
+        $tracking_pixel = '';
+        if (!isset($_HE_CONF['track_opens']) || (bool) $_HE_CONF['track_opens']) {
+            $tracking_pixel = '<img src="' . $_CONF['site_url'] . '/hello/track.php?h=' . $new_hello_id . '&amp;u=' . $U['uuid'] . '" width="1" height="1" alt="" style="display:none;" />';
+        }
+        $uid = (int) $U['uuid'];
         
-		//Record in the hello queue
-		$mailtext = addslashes($mailtext);
-		$sql_ajout_hello = "INSERT INTO {$_TABLES['hello_queue']} (expediteur, destinataire, date, hello_id, subject, content, priority) VALUES ('$mailfrom', '$mailto', '$creation', '$new_hello_id', '$subject', '$mailtext', '0')";
-		if (DB_query ($sql_ajout_hello)) {
-			$successes = $successes + 1;
-		} else {
-			$failures = $failures + 1;
-		}
+        if (!$test_mode) {
+		    $mailtext = addslashes($mailtext . $explication . $maillink . $tracking_pixel);
+            
+		    $sql_ajout_hello = "INSERT INTO {$_TABLES['hello_queue']} (expediteur, destinataire, creation, hello_id, subject, content, priority, uid) VALUES ('$mailfrom', '$mailto', '$creation', '$new_hello_id', '$subject', '$mailtext', '0', '$uid')";
+		
+		    if (DB_query ($sql_ajout_hello)) {
+			    $successes = $successes + 1;
+		    } else {
+			    $failures = $failures + 1;
+		    }
+        } else {
+            $mailtext_direct = $mailtext . $explication . $maillink;
+            $real_subject = stripslashes($subject);
+            $real_mailto = $U['email'];
+            
+            if (HELLO_mail($real_mailto, $real_subject, $mailtext_direct, $mailfrom, true, 3)) {
+                $successes = $successes + 1;
+            } else {
+                $failures = $failures + 1;
+            }
+        }
     }
 	
 	$retval = '';
 	
 	if ($successes >= 0) {
-        $retval .= $successes . ' ' . $LANG_HELLO01['email_schedule'];
+        if ($test_mode) {
+            $retval .= "<br><br><strong style='color:red;'>[MODE TEST] " . $successes . " e-mail(s) traité(s). Debug: $nrows utilisateurs trouvés, le dernier avait $nsrows articles, $failures erreurs.</strong><br><br>";
+        } else {
+            $retval .= $successes . ' ' . $LANG_HELLO01['email_schedule'];
+        }
 	} 
 	if ($failures > 0) {
 	    $retval .= 'Oups... There was ' . $failures . ' failure(s)';
 	}
- 
-    DB_query( "UPDATE {$_TABLES['vars']} SET value = NOW() WHERE name = 'lastemailedstories'" );
 	
-	if ($online) return $retval;
+	if (!$test_mode) {
+        DB_query( "UPDATE {$_TABLES['hello']} SET quantity = '$successes' WHERE hello_id = '$new_hello_id'" );
+	
+	    if ($online) {
+	        echo COM_refresh($_CONF['site_admin_url'] . '/plugins/hello/read_email.php?msg=digest_queued');
+	        exit;
+        }
+    }
 }
 
-//fire daily digest
+function HELLO_unsubscribeLink($uid, $email, $hello_id = 0, $test_mode = false)
+{
+    global $_CONF, $LANG_HELLO01;
+
+    $hash = MD5($email . "fFersh66");
+    $uid = (int) $uid;
+    $hello_id = (int) $hello_id;
+
+    $url = $_CONF['site_url'] . '/hello/unsubscribe.php?h=' . $hash
+        . '&amp;u=' . $uid . '&amp;hid=' . $hello_id;
+    $label = $LANG_HELLO01['unsubscribe'];
+
+    if ($test_mode) {
+        $url .= '&amp;test=1';
+        $label = isset($LANG_HELLO01['unsubscribe_test'])
+            ? $LANG_HELLO01['unsubscribe_test']
+            : $LANG_HELLO01['unsubscribe'] . ' (Test)';
+    }
+
+    $maillink = '<a href="' . $url
+        . '" style="color: #777; text-decoration: underline;">' . $label . '</a>';
+    $maillink .= '</td></tr></table>';
+
+    return $maillink;
+}
+
 function plugin_runScheduledTask_hello() {
 
     global $_CONF, $_TABLES;
@@ -736,27 +967,51 @@ function plugin_runScheduledTask_hello() {
     $result = DB_query ($sql);
     $count = DB_numRows ($result);
     
-	if ($_CONF['emailstories'] == 1 && $count > 0) HELLO_emailUserTopics(false);
+	if ($_CONF['emailstories'] == 1 && $count > 0) {
+	    HELLO_emailUserTopics(false);
+	}
 }
 
-// Hello CRON every 10 minutes (600 seconds)
+function plugin_check_hello()
+{
+    global $_TABLES, $_HE_CONF;
 
-global $_PLUGINS;
+    $auto = isset($_HE_CONF['enable_auto_cron']) ? (bool) $_HE_CONF['enable_auto_cron'] : true;
 
-if (in_array('hello', $_PLUGINS)) {
+    if ($auto) {
+        $last_run = DB_getItem($_TABLES['vars'], 'value', "name='hello_last_cron'");
+        if (empty($last_run) || $last_run < time() - 120) {
+            DB_query("REPLACE INTO {$_TABLES['vars']} (name, value) VALUES ('hello_last_cron', '" . time() . "')");
+            HELLO_send_hello();
+        }
+    }
+}
 
-	$last_run = DB_getItem($_TABLES['vars'],'value',"name='last_hello_run'");
+function HELLO_mail($to, $subject, $message, $from = '', $html = false, $priority = 0, $optional = null) {
+    global $_CONF;
+    
+    if (is_string($to) && preg_match('/<\s*([^>]+)\s*>$/', trim($to), $matches)) {
+        $to = $matches[1];
+    }
+    if (is_string($from) && preg_match('/<\s*([^>]+)\s*>$/', trim($from), $matches)) {
+        $from = $matches[1];
+    }
 
-	if($last_run == '') {
-		//set default value
-		$next_run = time() - (600) ;
-		DB_query("INSERT INTO {$_TABLES['vars']} SET name = 'last_hello_run', value = '$next_run'");
-		$last_run = $next_run;
-	}
-	if ($last_run + 600 <= time()) {
-		DB_query("UPDATE {$_TABLES['vars']} SET value=UNIX_TIMESTAMP() WHERE name='last_hello_run'");
-		HELLO_send_hello ();
-	}
+    $to = trim($to);
+    $from = trim($from);
+    if (empty($from)) {
+        $from = $_CONF['site_mail'];
+    }
+
+    if (COM_isEmail($to)) {
+        if ($html && class_exists('\\Geeklog\\Mail')) {
+            $body = array($message, HELLO_tagToPlain($message));
+            return \Geeklog\Mail::send($to, $subject, $body, $from, true, $priority, $optional);
+        }
+        return COM_mail($to, $subject, $message, $from, $html, $priority, $optional);
+    }
+    
+    return false;
 }
 
 ?>

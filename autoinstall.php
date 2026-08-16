@@ -2,13 +2,13 @@
 
 /* Reminder: always indent with 4 spaces (no tabs). */
 // +---------------------------------------------------------------------------+
-// | hello Plugin 2.1.1                                                        |
+// | hello Plugin 2.2.1                                                        |
 // +---------------------------------------------------------------------------+
 // | autoinstall.php                                                           |
 // |                                                                           |
 // | This file provides helper functions for the automatic plugin install.     |
 // +---------------------------------------------------------------------------+
-// | Copyright (C) 2016 by the following authors:                              |
+// | Copyright (C) 2016-2026 by the following authors:                         |
 // |                                                                           |
 // | Authors: ::Ben - ben AT geeklog DOT fr                                    |
 // +---------------------------------------------------------------------------+
@@ -53,8 +53,8 @@ function plugin_autoinstall_hello($pi_name)
     $info = array(
         'pi_name'         => $pi_name,
         'pi_display_name' => $pi_display_name,
-        'pi_version'      => '2.1.1',
-        'pi_gl_version'   => '2.0.0',
+        'pi_version'      => '2.2.1',
+        'pi_gl_version'   => '2.1.1',
         'pi_homepage'     => 'http://geeklog.fr'
     );
 
@@ -74,7 +74,10 @@ function plugin_autoinstall_hello($pi_name)
 
     $tables = array(
         'hello',
-		'hello_queue'
+        'hello_queue',
+        'hello_stats',
+        'hello_urls_clicked',
+        'hello_links'
     );
 
     $inst_parms = array(
@@ -130,11 +133,6 @@ function plugin_postinstall_hello($pi_name)
 {
     global $_TABLES, $_CONF, $_USER;
 	
-	/* This code is for statistics ONLY */
-	$message =  "Completed hello plugin install: " . date('m d Y',time()) . "   AT " . date('H:i', time()) . "\n";
-	$message .= 'Site: ' . $_CONF['site_url'] . ' and Sitename: ' . $_CONF['site_name'] . "\n";
-	COM_mail("ben@geeklog.fr",'[' . $_CONF['site_name'] . '] hello plugin install',$message);
-
 	return true;
 }
 ?>
