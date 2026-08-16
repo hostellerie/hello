@@ -44,10 +44,16 @@ require_once $_CONF['path'] . 'plugins/hello/functions.inc';
 
 $uid = isset($_GET['u']) ? (int) $_GET['u'] : 0;
 $hello_id = isset($_GET['h']) ? (int) $_GET['h'] : 0;
+$test_mode = isset($_GET['test']) && (int) $_GET['test'] === 1;
+$test_context = isset($_GET['k']) && $_GET['k'] === 'digest' ? 'digest' : 'campaign';
 
-if ((!isset($_HE_CONF['track_opens']) || (bool) $_HE_CONF['track_opens'])
-    && $uid > 1 && $hello_id > 0) {
-    DB_query("INSERT INTO {$_TABLES['hello_stats']} (hello_id, uid, opened) VALUES ($hello_id, $uid, 1) ON DUPLICATE KEY UPDATE opened = 1");
+if ((!isset($_HE_CONF['track_opens']) || (bool) $_HE_CONF['track_opens']) && $uid > 1) {
+    if ($test_mode && $hello_id === 0) {
+        HELLO_recordTestTracking($uid, $test_context, 'open');
+    } else if (!$test_mode && $hello_id > 0) {
+        DB_query("INSERT INTO {$_TABLES['hello_stats']} (hello_id, uid, opened) "
+            . "VALUES ($hello_id, $uid, 1) ON DUPLICATE KEY UPDATE opened = 1");
+    }
 }
 
 // Return a 1x1 transparent GIF without allowing shared caches to hide opens.

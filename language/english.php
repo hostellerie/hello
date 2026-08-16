@@ -182,6 +182,8 @@ $LANG_HELLO01 = array(
     'forums'                  => 'Forums',
     'no_forums'               => 'None',
     'forum_topics'            => 'forum topics',
+    
+    // Page Instructions
     'inst_index'              => 'Manage the manual dispatch of the daily stories digest and search for members. Documentation is available at the bottom of this page.',
     'inst_group'              => 'Write and send a new targeted email campaign to a group of users.',
     'inst_read'               => 'View your campaign archives and access detailed statistics.',
@@ -202,10 +204,10 @@ $LANG_HELLO01 = array(
     'invalid_link_msg'        => 'Invalid or expired unsubscribe link.',
     'test_email_success'      => 'Test email successfully sent',
     'test_email_footer'       => 'TEST MESSAGE — The unsubscribe link below is a simulation. You can test the complete unsubscribe flow without changing any subscriber preference.',
-    'unsubscribe_test'        => 'Unsubscribe (Test)',
-    'unsub_test_warning'      => 'TEST MODE — This is a simulated unsubscribe. Confirming will not change your subscription or email preferences.',
-    'unsub_test_success'      => 'TEST MODE — The unsubscribe workflow completed successfully, but no subscription or email preference was changed.',
-    'resub_test_success'      => 'TEST MODE — The resubscribe workflow completed successfully, but no subscription or email preference was changed.',
+    'unsubscribe_test'         => 'Unsubscribe (Test)',
+    'unsub_test_warning'       => 'TEST MODE — This is a simulated unsubscribe. Confirming will not change your subscription or email preferences.',
+    'unsub_test_success'       => 'TEST MODE — The unsubscribe workflow completed successfully, but no subscription or email preference was changed.',
+    'resub_test_success'       => 'TEST MODE — The resubscribe workflow completed successfully, but no subscription or email preference was changed.',
     'test_email_failed'       => 'The test email could not be sent. Please check the Geeklog error log and your mail configuration.',
     'manual_paused_note'      => 'Note: %d additional emails are paused or scheduled for later and will not be sent now.',
     'crm_unique_clicks'       => 'unique click(s) on: ',
@@ -239,9 +241,20 @@ $LANG_HELLO01 = array(
     'crm_subscribers'         => 'subscribers',
     'crm_unique_opens'        => 'Unique Opens',
     'crm_view_opens'          => 'View detailed opens table for this campaign',
-    'crm_detail_opens'        => 'Open details for campaign #'
+    'crm_detail_opens'        => 'Open details for campaign #',
+    'tracking_test_title' => 'Test tracking status',
+    'tracking_test_digest' => 'Digest test',
+    'tracking_test_campaign' => 'Campaign test',
+    'tracking_test_open_ok' => 'Open tracking detected',
+    'tracking_test_open_wait' => 'Open tracking: waiting for the test email to be opened',
+    'tracking_test_click_ok' => 'Click tracking detected',
+    'tracking_test_click_wait' => 'Click tracking: waiting for a tracked link to be clicked',
+    'tracking_test_help' => 'Send a new test to reset these indicators. Open the test email and click one of its normal links, then reload this administration page. Test events never modify campaign statistics.',
+    'tracking_test_open_disabled' => 'Open tracking is disabled in Hello configuration',
+    'tracking_test_click_disabled' => 'Click tracking is disabled in Hello configuration',
 );
 
+// Localization of the Admin Configuration UI
 $LANG_configsections['hello'] = array(
     'label' => 'Hello',
     'title' => 'Hello Configuration'
@@ -262,6 +275,7 @@ $LANG_fs['hello'] = array(
     'fs_01' => 'Hello plugin'
 );
 
+// Note: entries 0, 1, and 12 are the same as in $LANG_configselects['Core']
 $LANG_configselects['hello'] = array(
     0 => array('True' => 1, 'False' => 0),
     1 => array('True' => TRUE, 'False' => FALSE)

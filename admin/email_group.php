@@ -62,6 +62,9 @@ function display_mailform ($vars=array())
     global $_CONF, $_SCRIPTS, $_TABLES, $_USER, $LANG31, $LANG24, $LANG_HELLO01;
 
     $retval = '';
+    if (isset($_USER['uid']) && (int) $_USER['uid'] > 1) {
+        $retval .= HELLO_testTrackingStatusHtml((int) $_USER['uid'], 'campaign');
+    }
 
     if ($_CONF['advanced_editor'] == 1) {
         $postmode = 'html';
@@ -250,9 +253,16 @@ function send_messages($vars)
                 $sujet = '[TEST] ' . $sujet;
             }
             $content = $vars['content'];
+            $test_uid = (int) $_USER['uid'];
+            HELLO_resetTestTracking($test_uid, 'campaign');
             
             // Variable Replacement
             $content = str_replace(array('[USERNAME]', '[FULLNAME]'), array($username, $fullname), $content);
+
+            $track_clicks = !isset($_HE_CONF['track_clicks']) || (bool) $_HE_CONF['track_clicks'];
+            if ($track_clicks) {
+                $content = HELLO_rewriteTrackedLinks($content, 0, $test_uid, true, 'campaign');
+            }
             
             // Test footer with an active but non-destructive unsubscribe simulation.
             // unsubscribe.php recognizes test=1 and never writes preferences or stats.
@@ -263,6 +273,12 @@ function send_messages($vars)
 
             $content .= $testFooter;
 
+            if (!isset($_HE_CONF['track_opens']) || (bool) $_HE_CONF['track_opens']) {
+                $content .= '<img src="' . $_CONF['site_url'] . '/hello/track.php?h=0&amp;u='
+                    . $test_uid . '&amp;test=1&amp;k=campaign" width="1" height="1" alt="" style="display:none;" />';
+            }
+
+            $content = HELLO_prepareHtmlForEmail($content);
             $from = $_CONF['site_mail'];
 
             $mailSent = HELLO_mail($destinataire, $sujet, $content, $from, true, $priority);
