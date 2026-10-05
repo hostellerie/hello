@@ -2,7 +2,7 @@
 
 /* Reminder: always indent with 4 spaces (no tabs). */
 // +---------------------------------------------------------------------------+
-// | hello Plugin 2.2.1                                                        |
+// | hello Plugin 2.3.0                                                        |
 // +---------------------------------------------------------------------------+
 // | english.php
 // |                                                                           |
@@ -261,10 +261,15 @@ $LANG_configsections['hello'] = array(
 );
 
 $LANG_confignames['hello'] = array(
-    'max_email' => 'Number of emails to send per run <abbr title="Maximum number of messages processed during one queue run. This is a batch size, not the hourly sending limit.">?</abbr>',
-    'hourly_limit' => 'Strict hourly maximum limit (Throttling) <abbr title="Hard safety limit for the total number of newsletter messages sent during one hour. Hello reduces the batch automatically when this limit is close to being reached. Set to 0 only if you intentionally want no hourly limit.">?</abbr>',
-    'track_clicks' => 'Track clicks with short first-party links <abbr title="Replaces eligible links with short links on this site so Hello can count clicks. Disable this if you prefer direct destination URLs and no click statistics.">?</abbr>',
-    'track_opens' => 'Track newsletter opens with a 1×1 pixel <abbr title="Adds a tiny invisible image to estimate newsletter opens. Open counts are approximate because some email clients block images or use privacy proxies.">?</abbr>',
+    'max_email' => 'Emails per batch',
+    'hourly_limit' => 'Hourly limit',
+    'track_clicks' => 'Click tracking',
+    'track_opens' => 'Open tracking',
+    'enable_auto_cron' => 'Automatic queue processing',
+);
+
+$LANG_tab['hello'] = array(
+    'tab_main' => 'Main',
 );
 
 $LANG_configsubgroups['hello'] = array(
