@@ -86,8 +86,7 @@ Documents
 Maps
 Videos
 Forum
-Store
-Tickets
+Store (future public-product provider)
 Static Pages
 other compatible content plugins
         |
@@ -806,12 +805,12 @@ Current state on the development branch:
 |---|---|---|
 | Stories | Ready | Native adapter |
 | Static Pages | Ready | Available through Geeklog Item Info |
-| Documents | Auto-detected when available | Provider contract still required/verified |
-| Maps | Auto-detected when available | Provider contract still required/verified |
-| Videos | Auto-detected when available | Provider contract still required/verified |
-| Forum | Auto-detected when available | Provider contract still required/verified |
-| Store | Auto-detected when available | Provider contract still required/verified |
-| Tickets | Auto-detected when available | Provider contract still required/verified |
+| Documents | Ready when plugin branch is installed | Verified collection contract with permissions, `since`, `limit`, `order` |
+| Maps | Ready when plugin branch is installed | Verified collection contract with permissions, `since`, `limit`, `order` |
+| Videos | Ready when plugin branch is installed | Verified persistent/editorial collection with `since`, `limit`, `order` |
+| Forum | Ready on updated branches | Collection contract aligned with permissions, `since`, `limit`, `order` and capabilities |
+| Store | Deferred | Public product contract is planned in Store roadmap after catalogue/publication semantics stabilize |
+| Tickets | Not an editorial source | Private transactional user/admin workflow; keep outside editorial digest discovery |
 
 Hello must not add direct SQL fallbacks for external plugins merely to make them appear as sources. The owning plugin should expose the shared collection contract first.
 
@@ -848,7 +847,7 @@ Hello must not add direct SQL fallbacks for external plugins merely to make them
 20. Add individual candidate selection/deselection.
 21. Add digest preview and reusable test/live rendering path.
 22. Add multi-source rendering tests.
-23. Validate at least Stories plus one non-Story provider; include Tickets in provider discovery where it exposes the shared contract.
+23. Validate Stories plus Static Pages and at least one external provider (Documents, Maps, Videos or Forum). Keep Tickets outside editorial provider discovery.
 
 ### P3 — Hub integration
 
