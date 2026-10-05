@@ -44,6 +44,7 @@ CREATE TABLE {$_TABLES['hello']} (
   email_group varchar(50) NOT NULL default '',
   quantity int(11) NOT NULL default '0',
   status tinyint(1) NOT NULL default '0',
+  kind varchar(16) NOT NULL default 'campaign',
   content text NOT NULL,
   PRIMARY KEY  (hello_id)
 ) ENGINE=MyISAM
