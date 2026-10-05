@@ -1014,6 +1014,42 @@ function HELLO_getStoryDigestCandidates($since, $selected_sids = array())
 }
 
 /**
+ * Return digest sources that are currently available.
+ *
+ * Stories is native. Other sources are exposed automatically when an enabled
+ * plugin implements plugin_getiteminfo_PLUGIN(), allowing Hello to adopt new
+ * providers without plugin-specific SQL or release coupling.
+ */
+function HELLO_getAvailableDigestSources()
+{
+    global $_PLUGINS;
+
+    $sources = array(
+        'stories' => 'Stories',
+    );
+
+    $known = array(
+        'staticpages' => 'Static Pages',
+        'documents' => 'Documents',
+        'maps' => 'Maps',
+        'videos' => 'Videos',
+        'forum' => 'Forum',
+        'store' => 'Store',
+        'tickets' => 'Tickets',
+    );
+
+    foreach ($known as $plugin => $label) {
+        if (in_array($plugin, $_PLUGINS, true)
+            && function_exists('plugin_getiteminfo_' . $plugin)
+        ) {
+            $sources[$plugin] = $label;
+        }
+    }
+
+    return $sources;
+}
+
+/**
  * Return normalized candidates from a plugin exposing the shared Item Info contract.
  *
  * Collection filtering is performed locally when the provider does not yet
@@ -1077,9 +1113,12 @@ function HELLO_getPluginDigestCandidates($plugin, $since, $uid = 0)
             'source_label' => ucfirst($plugin),
         );
 
+        $available_sources = HELLO_getAvailableDigestSources();
+        if (isset($available_sources[$plugin])) {
+            $normalized['source_label'] = $available_sources[$plugin];
+        }
         if ($plugin === 'staticpages') {
             $normalized['type'] = 'staticpage';
-            $normalized['source_label'] = 'Static Pages';
         }
 
         if ($normalized['id'] !== '' && $normalized['title'] !== '' && $normalized['url'] !== '') {
@@ -1109,8 +1148,15 @@ function HELLO_getDigestCandidates($sources, $since, $uid = 0)
         $items = array_merge($items, HELLO_getStoryDigestCandidates($since));
     }
 
-    if (in_array('staticpages', $sources, true)) {
-        $items = array_merge($items, HELLO_getPluginDigestCandidates('staticpages', $since, $uid));
+    $available = HELLO_getAvailableDigestSources();
+    foreach ($sources as $source) {
+        if ($source === 'stories' || !isset($available[$source])) {
+            continue;
+        }
+        $items = array_merge(
+            $items,
+            HELLO_getPluginDigestCandidates($source, $since, $uid)
+        );
     }
 
     usort($items, function ($a, $b) {
