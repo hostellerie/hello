@@ -2,7 +2,7 @@
 
 /* Reminder: always indent with 4 spaces (no tabs). */
 // +---------------------------------------------------------------------------+
-// | hello Plugin 2.2.1                                                        |
+// | hello Plugin 2.3.0                                                        |
 // +---------------------------------------------------------------------------+
 // | functions.inc                                                             |
 // |                                                                           |
@@ -46,6 +46,8 @@ $_TABLES['hello_queue']    = $_DB_table_prefix . 'hello_queue';
 $_TABLES['hello_stats']    = $_DB_table_prefix . 'hello_stats';
 $_TABLES['hello_urls_clicked'] = $_DB_table_prefix . 'hello_urls_clicked';
 $_TABLES['hello_links'] = $_DB_table_prefix . 'hello_links';
+$_TABLES['hello_subscriptions'] = $_DB_table_prefix . 'hello_subscriptions';
+$_TABLES['hello_subscription_events'] = $_DB_table_prefix . 'hello_subscription_events';
 	
 // path to the plugin
 $plugin_path = $_CONF['path'] . 'plugins/hello/';
@@ -169,7 +171,7 @@ function plugin_autouninstall_hello ()
 {
     $out = array (
         /* give the name of the tables, without $_TABLES[] */
-        'tables' => array('hello', 'hello_queue', 'hello_stats', 'hello_urls_clicked', 'hello_links'),
+        'tables' => array('hello', 'hello_queue', 'hello_stats', 'hello_urls_clicked', 'hello_links', 'hello_subscriptions', 'hello_subscription_events'),
         /* give the full name of the group, as in the db */
         'groups' => array('hello Admin'),
         /* give the full name of the feature, as in the db */
@@ -177,7 +179,7 @@ function plugin_autouninstall_hello ()
         /* give the full name of the block, including 'phpblock_', etc */
         'php_blocks' => array(),
         /* give all vars with their name */
-        'vars'=> array('hello_hourly_count', 'hello_hourly_reset')
+        'vars'=> array('hello_hourly_count', 'hello_hourly_reset', 'hello_last_cron', 'hello_last_digest_sent')
     );
 
     return $out;
@@ -325,6 +327,15 @@ function plugin_upgrade_hello()
                 break;
 
             case '2.2.1':
+                if (isset($_UPDATES['2.2.1'])) {
+                    foreach ($_UPDATES['2.2.1'] as $sql) {
+                        DB_query($sql);
+                    }
+                }
+                $current_version = '2.3.0';
+                break;
+
+            case '2.3.0':
                 $done = true;
                 break;
                 
@@ -493,7 +504,7 @@ function HELLO_send_hello($manual = false) {
     $max_email_pref = isset($_HE_CONF['max_email']) ? (int) $_HE_CONF['max_email'] : 10;
     $batch_size = min($max_email_pref, $allowed_to_send);
 
-    $sql = "SELECT q.* FROM {$_TABLES['hello_queue']} q "
+    $sql = "SELECT q.*, h.email_group AS hello_email_group FROM {$_TABLES['hello_queue']} q "
          . "INNER JOIN {$_TABLES['hello']} h ON q.hello_id = h.hello_id "
          . "WHERE q.creation <= " . $heure_script . " AND h.status = 0 "
          . "ORDER BY q.uid ASC, q.creation ASC LIMIT 0, $batch_size";
@@ -518,7 +529,13 @@ function HELLO_send_hello($manual = false) {
         $uid = isset($A['uid']) ? (int)$A['uid'] : 0;
         $hello_id = isset($A['hello_id']) ? (int)$A['hello_id'] : 0;
         $hash = MD5($destinataire."fFersh66");
-        $unsubscribe_url = $_CONF['site_url'] . '/hello/unsubscribe.php?h=' . $hash . '&u=' . $uid . '&hid=' . $hello_id;
+        $unsubscribe_scope = (
+            isset($A['hello_email_group'])
+            && ($A['hello_email_group'] === $LANG_HELLO01['mdigest']
+                || $A['hello_email_group'] === $LANG_HELLO01['ddigest'])
+        ) ? 'digest' : 'campaign';
+        $unsubscribe_url = $_CONF['site_url'] . '/hello/unsubscribe.php?h=' . $hash
+            . '&u=' . $uid . '&hid=' . $hello_id . '&scope=' . $unsubscribe_scope;
         
         // --- 1. Variable Replacement ---
         if ($uid > 1) {
@@ -921,7 +938,10 @@ function HELLO_emailUserTopics($online=true, $test_mode=false)
             . "FROM {$_TABLES['users']}, {$prefs_table} "
             . "WHERE {$_TABLES['users']}.uid > 1 AND {$_TABLES['users']}.status = 3 AND {$_TABLES['users']}.email <> '' "
             . "AND {$prefs_table}.uid = {$_TABLES['users']}.uid "
-            . "AND emailfromadmin = 1{$etids_where} ORDER BY {$_TABLES['users']}.uid";
+            . "AND emailfromadmin = 1{$etids_where} "
+            . "AND NOT EXISTS (SELECT 1 FROM {$_TABLES['hello_subscriptions']} hs "
+            . "WHERE hs.uid = {$_TABLES['users']}.uid AND hs.scope = 'digest' AND hs.subscribed = 0) "
+            . "ORDER BY {$_TABLES['users']}.uid";
     }
  
     $users = DB_query( $usersql );
@@ -1118,11 +1138,11 @@ function HELLO_emailUserTopics($online=true, $test_mode=false)
             // test=1 is handled end-to-end by unsubscribe.php and never writes
             // subscriber preferences or unsubscribe statistics.
             $explication .= '<br><strong>' . $LANG_HELLO01['test_email_footer'] . '</strong><br>';
-            $maillink = HELLO_unsubscribeLink($U['uuid'], $U['email'], 0, true);
+            $maillink = HELLO_unsubscribeLink($U['uuid'], $U['email'], 0, true, 'digest');
             $maillink = str_replace('</td></tr></table>', '</div></div></div></body></html>', $maillink);
         } else {
             $explication .= ' &bull; ';
-            $maillink = HELLO_unsubscribeLink($U['uuid'], $U['email'], $new_hello_id);
+            $maillink = HELLO_unsubscribeLink($U['uuid'], $U['email'], $new_hello_id, false, 'digest');
             $maillink = str_replace('</td></tr></table>', '</div></div></div></body></html>', $maillink);
         }
 
@@ -1195,17 +1215,86 @@ function HELLO_emailUserTopics($online=true, $test_mode=false)
     }
 }
 
+/**
+ * Return Hello subscription state for one scope.
+ *
+ * No explicit row means subscribed, preserving existing installations.
+ */
+function HELLO_isSubscribed($uid, $scope)
+{
+    global $_TABLES;
+
+    $uid = (int) $uid;
+    $scope = ($scope === 'digest') ? 'digest' : 'campaign';
+
+    if ($uid <= 1) {
+        return false;
+    }
+
+    $safe_scope = DB_escapeString($scope);
+    $value = DB_getItem(
+        $_TABLES['hello_subscriptions'],
+        'subscribed',
+        "uid = $uid AND scope = '$safe_scope'"
+    );
+
+    return ($value === '' || $value === null) ? true : ((int) $value === 1);
+}
+
+/**
+ * Persist current subscription state and append an auditable event.
+ */
+function HELLO_setSubscription($uid, $scope, $subscribed, $source, $hello_id = 0, $details = '')
+{
+    global $_TABLES;
+
+    $uid = (int) $uid;
+    $hello_id = (int) $hello_id;
+    $scope = ($scope === 'digest') ? 'digest' : 'campaign';
+    $subscribed = $subscribed ? 1 : 0;
+
+    if ($uid <= 1) {
+        return false;
+    }
+
+    $safe_scope = DB_escapeString($scope);
+    $safe_source = DB_escapeString(substr((string) $source, 0, 32));
+    $safe_details = DB_escapeString(substr((string) $details, 0, 255));
+    $now = date('Y-m-d H:i:s');
+
+    DB_query(
+        "REPLACE INTO {$_TABLES['hello_subscriptions']} "
+        . "(uid, scope, subscribed, updated_at) "
+        . "VALUES ($uid, '$safe_scope', $subscribed, '$now')"
+    );
+
+    if (DB_error()) {
+        return false;
+    }
+
+    $action = $subscribed ? 'subscribe' : 'unsubscribe';
+    DB_query(
+        "INSERT INTO {$_TABLES['hello_subscription_events']} "
+        . "(uid, scope, action, source, hello_id, details, created_at) "
+        . "VALUES ($uid, '$safe_scope', '$action', '$safe_source', $hello_id, '$safe_details', '$now')"
+    );
+
+    return !DB_error();
+}
+
 // Return unsubscribe link for specific user
-function HELLO_unsubscribeLink($uid, $email, $hello_id = 0, $test_mode = false)
+function HELLO_unsubscribeLink($uid, $email, $hello_id = 0, $test_mode = false, $scope = 'campaign')
 {
     global $_CONF, $LANG_HELLO01;
 
     $hash = MD5($email . "fFersh66");
     $uid = (int) $uid;
     $hello_id = (int) $hello_id;
+    $scope = ($scope === 'digest') ? 'digest' : 'campaign';
 
     $url = $_CONF['site_url'] . '/hello/unsubscribe.php?h=' . $hash
-        . '&amp;u=' . $uid . '&amp;hid=' . $hello_id;
+        . '&amp;u=' . $uid . '&amp;hid=' . $hello_id
+        . '&amp;scope=' . $scope;
     $label = $LANG_HELLO01['unsubscribe'];
 
     if ($test_mode) {
@@ -1222,23 +1311,13 @@ function HELLO_unsubscribeLink($uid, $email, $hello_id = 0, $test_mode = false)
     return $maillink;
 }
 
-//fire daily digest
-function plugin_runScheduledTask_hello() {
-
-    global $_CONF, $_TABLES;
-	
-	$lastrun = DB_getItem ($_TABLES['vars'], 'value', "name = 'lastemailedstories'");
-	$sql = "SELECT sid FROM {$_TABLES['stories']} WHERE draft_flag = 0 AND date <= NOW() AND date >= '{$lastrun}'";
-    $result = DB_query ($sql);
-    $count = DB_numRows ($result);
-    
-	if ($_CONF['emailstories'] == 1 && $count > 0) {
-	    HELLO_emailUserTopics(false);
-	}
-		// Prepare newsletter
+// Scheduled task: 2.3.0 never sends a digest automatically by default.
+// Future automatic digest delivery must be a dedicated opt-in configuration
+// and must reuse the same approval/delivery pipeline.
+function plugin_runScheduledTask_hello()
+{
+    return;
 }
-
-
 
 // Hello CRON every 2 minutes (120 seconds)
 /*
@@ -1265,8 +1344,8 @@ function plugin_check_hello()
 {
     global $_TABLES, $_HE_CONF;
 
-    // Default to true (Option B) if the configuration hasn't been saved yet by the admin
-    $auto = isset($_HE_CONF['enable_auto_cron']) ? (bool) $_HE_CONF['enable_auto_cron'] : true;
+    // Browser-triggered queue processing is opt-in. CLI cron remains the recommended path.
+    $auto = isset($_HE_CONF['enable_auto_cron']) ? (bool) $_HE_CONF['enable_auto_cron'] : false;
 
     if ($auto) {
         $last_run = DB_getItem($_TABLES['vars'], 'value', "name='hello_last_cron'");
