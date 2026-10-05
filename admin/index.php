@@ -111,7 +111,7 @@ function HELLO_search_form ($query = '')
 
 function HELLO_send_digest()
 {
-    global $_CONF, $_TABLES, $LANG_HELLO01, $PHP_SELF, $_USER, $_PLUGINS;
+    global $_CONF, $_TABLES, $LANG_HELLO01, $PHP_SELF, $_USER;
 
     $display = '';
 
@@ -134,9 +134,18 @@ function HELLO_send_digest()
         : '[' . $_CONF['site_name'] . '] ' . $LANG_HELLO01['digest_default_subject'];
     $intro = isset($_POST['digest_intro_text']) ? trim($_POST['digest_intro_text']) : '';
 
-    $sources = isset($_POST['digest_source']) && is_array($_POST['digest_source'])
-        ? array_values(array_unique($_POST['digest_source']))
-        : array('stories');
+    $available_sources = HELLO_getAvailableDigestSources();
+    $sources = array('stories');
+    if (isset($_POST['digest_source']) && is_array($_POST['digest_source'])) {
+        $sources = array();
+        foreach ($_POST['digest_source'] as $source_id) {
+            $source_id = strtolower(trim((string) $source_id));
+            if (isset($available_sources[$source_id])) {
+                $sources[] = $source_id;
+            }
+        }
+        $sources = array_values(array_unique($sources));
+    }
 
     $selected = array();
     if (isset($_POST['digest_item']) && is_array($_POST['digest_item'])) {
@@ -215,13 +224,18 @@ function HELLO_send_digest()
     $display .= '</div>';
 
     $display .= '<h4 style="margin-top:22px;">' . $LANG_HELLO01['digest_sources_label'] . '</h4>';
-    $display .= '<label style="margin-right:18px;"><input type="checkbox" name="digest_source[]" value="stories"'
-        . (in_array('stories', $sources, true) ? ' checked' : '') . ' /> '
-        . $LANG_HELLO01['digest_source_stories'] . '</label>';
-    if (in_array('staticpages', $_PLUGINS, true)) {
-        $display .= '<label><input type="checkbox" name="digest_source[]" value="staticpages"'
-            . (in_array('staticpages', $sources, true) ? ' checked' : '') . ' /> '
-            . $LANG_HELLO01['digest_source_staticpages'] . '</label>';
+    $available_sources = HELLO_getAvailableDigestSources();
+    foreach ($available_sources as $source_id => $source_label) {
+        $label = $source_label;
+        if ($source_id === 'stories') {
+            $label = $LANG_HELLO01['digest_source_stories'];
+        } elseif ($source_id === 'staticpages') {
+            $label = $LANG_HELLO01['digest_source_staticpages'];
+        }
+        $display .= '<label style="margin-right:18px;"><input type="checkbox" name="digest_source[]" value="'
+            . htmlspecialchars($source_id, ENT_QUOTES, 'UTF-8') . '"'
+            . (in_array($source_id, $sources, true) ? ' checked' : '') . ' /> '
+            . htmlspecialchars($label, ENT_QUOTES, 'UTF-8') . '</label>';
     }
 
     $display .= '<h4 style="margin-top:22px;">' . $LANG_HELLO01['digest_articles_label'] . '</h4>';
