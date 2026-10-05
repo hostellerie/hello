@@ -911,6 +911,85 @@ function HELLO_emailSafeImages($html)
     }, $html);
 }
 
+/**
+ * Normalize one digest candidate so the admin UI is not tied to Story rows.
+ */
+function HELLO_normalizeDigestItem($source, $item)
+{
+    global $_CONF;
+
+    $source = strtolower(trim((string) $source));
+    $normalized = array(
+        'source' => $source,
+        'id' => '',
+        'type' => $source,
+        'title' => '',
+        'url' => '',
+        'date' => '',
+        'excerpt' => '',
+        'image' => '',
+        'source_label' => ucfirst($source),
+    );
+
+    if ($source === 'stories') {
+        $normalized['id'] = isset($item['sid']) ? (string) $item['sid'] : '';
+        $normalized['type'] = 'story';
+        $normalized['title'] = isset($item['title']) ? (string) $item['title'] : '';
+        $normalized['date'] = isset($item['date']) ? (string) $item['date'] : '';
+        $normalized['excerpt'] = isset($item['introtext']) ? (string) $item['introtext'] : '';
+        if ($normalized['id'] !== '') {
+            $normalized['url'] = $_CONF['site_url'] . '/article.php?story='
+                . rawurlencode($normalized['id']);
+        }
+        $normalized['source_label'] = 'Stories';
+    }
+
+    return $normalized;
+}
+
+/**
+ * Return Story candidates in the common digest-item shape.
+ */
+function HELLO_getStoryDigestCandidates($since, $selected_sids = array())
+{
+    global $_TABLES;
+
+    $since = trim((string) $since);
+    $dt = DateTime::createFromFormat('Y-m-d H:i:s', $since);
+    if (!$dt || $dt->format('Y-m-d H:i:s') !== $since) {
+        return array();
+    }
+
+    $safe_since = DB_escapeString($since);
+    $filter = '';
+    if (is_array($selected_sids) && !empty($selected_sids)) {
+        $safe = array();
+        foreach ($selected_sids as $sid) {
+            $sid = trim((string) $sid);
+            if ($sid !== '') {
+                $safe[] = "'" . DB_escapeString($sid) . "'";
+            }
+        }
+        if (!empty($safe)) {
+            $filter = ' AND sid IN (' . implode(',', array_unique($safe)) . ')';
+        }
+    }
+
+    $result = DB_query(
+        "SELECT sid, uid, title, date, introtext FROM {$_TABLES['stories']} "
+        . "WHERE draft_flag = 0 AND date <= NOW() AND date >= '$safe_since'"
+        . $filter
+        . " ORDER BY date DESC"
+    );
+
+    $items = array();
+    while ($row = DB_fetchArray($result)) {
+        $items[] = HELLO_normalizeDigestItem('stories', $row);
+    }
+
+    return $items;
+}
+
 function HELLO_emailUserTopics($online=true, $test_mode=false, $options=array())
 {
     global $_CONF, $_TABLES, $LANG04, $LANG08, $LANG24, $LANG_HELLO01, $_USER;
