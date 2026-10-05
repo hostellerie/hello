@@ -2,7 +2,7 @@
 
 /* Reminder: always indent with 4 spaces (no tabs). */
 // +---------------------------------------------------------------------------+
-// | hello Plugin 2.2.1                                                        |
+// | hello Plugin 2.3.0                                                        |
 // +---------------------------------------------------------------------------+
 // | bounces.php
 // |                                                                           |
@@ -50,6 +50,8 @@ if (isset($_POST['process_bounces']) && SEC_checkToken()) {
                 while ($row = DB_fetchArray($uid_query)) {
                     $uid = (int) $row['uid'];
                     DB_query("UPDATE $table_pref SET emailfromadmin = 0 WHERE uid = $uid");
+                    HELLO_setSubscription($uid, 'campaign', false, 'bounce', 0, 'hard bounce');
+                    HELLO_setSubscription($uid, 'digest', false, 'bounce', 0, 'hard bounce');
                     $processed++;
                 }
             } else {
