@@ -796,7 +796,24 @@ The current `hello-2.3.0` branch now includes:
 - preview, administrator test and explicit queue actions;
 - digest boundary advanced only after at least one real recipient is queued.
 
-The next digest step is to extract the Story implementation behind the normalized item/source boundary before adding Static Pages and external content plugins.
+The Story implementation is now behind a normalized item/source boundary. Hello also auto-discovers enabled plugins exposing the shared `plugin_getiteminfo_PLUGIN()` contract, so compatible providers can appear without Hello-specific SQL or release coupling.
+
+### Provider readiness
+
+Current state on the development branch:
+
+| Source | Hello support | Provider collection contract |
+|---|---|---|
+| Stories | Ready | Native adapter |
+| Static Pages | Ready | Available through Geeklog Item Info |
+| Documents | Auto-detected when available | Provider contract still required/verified |
+| Maps | Auto-detected when available | Provider contract still required/verified |
+| Videos | Auto-detected when available | Provider contract still required/verified |
+| Forum | Auto-detected when available | Provider contract still required/verified |
+| Store | Auto-detected when available | Provider contract still required/verified |
+| Tickets | Auto-detected when available | Provider contract still required/verified |
+
+Hello must not add direct SQL fallbacks for external plugins merely to make them appear as sources. The owning plugin should expose the shared collection contract first.
 
 
 
