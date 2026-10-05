@@ -1020,6 +1020,41 @@ function HELLO_getStoryDigestCandidates($since, $selected_sids = array())
  * plugin implements plugin_getiteminfo_PLUGIN(), allowing Hello to adopt new
  * providers without plugin-specific SQL or release coupling.
  */
+/**
+ * Return whether a plugin explicitly exposes a safe content collection.
+ */
+function HELLO_pluginSupportsContentCollection($plugin)
+{
+    $plugin = strtolower(trim((string) $plugin));
+
+    // Static Pages is a core compatibility exception: Geeklog exposes
+    // plugin_getiteminfo_staticpages('*', ...) but older supported cores do
+    // not advertise capabilities using plugin_getcapabilities_staticpages().
+    if ($plugin === 'staticpages') {
+        return function_exists('plugin_getiteminfo_staticpages');
+    }
+
+    $capabilityFunction = 'plugin_getcapabilities_' . $plugin;
+    if (!function_exists($capabilityFunction)) {
+        return false;
+    }
+
+    $definition = call_user_func($capabilityFunction);
+    if (!is_array($definition)) {
+        return false;
+    }
+
+    if (isset($definition['capabilities']) && is_array($definition['capabilities'])) {
+        return in_array('content.collection', $definition['capabilities'], true);
+    }
+
+    // Compatibility with providers exposing the older boolean shape.
+    return !empty($definition['collections']);
+}
+
+/**
+ * Return editorial digest sources that are currently safe and available.
+ */
 function HELLO_getAvailableDigestSources()
 {
     global $_PLUGINS;
@@ -1028,22 +1063,26 @@ function HELLO_getAvailableDigestSources()
         'stories' => 'Stories',
     );
 
+    // Deliberately limited to editorial/public content providers.
+    // Store remains deferred until its public product contract is stable.
+    // Tickets is transactional/private and is not an editorial digest source.
     $known = array(
         'staticpages' => 'Static Pages',
         'documents' => 'Documents',
         'maps' => 'Maps',
         'videos' => 'Videos',
         'forum' => 'Forum',
-        'store' => 'Store',
-        'tickets' => 'Tickets',
     );
 
     foreach ($known as $plugin => $label) {
-        if (in_array($plugin, $_PLUGINS, true)
-            && function_exists('plugin_getiteminfo_' . $plugin)
+        if (!in_array($plugin, $_PLUGINS, true)
+            || !function_exists('plugin_getiteminfo_' . $plugin)
+            || !HELLO_pluginSupportsContentCollection($plugin)
         ) {
-            $sources[$plugin] = $label;
+            continue;
         }
+
+        $sources[$plugin] = $label;
     }
 
     return $sources;
@@ -1070,10 +1109,15 @@ function HELLO_getPluginDigestCandidates($plugin, $since, $uid = 0)
     }
     $since_ts = $dt->getTimestamp();
 
-    $what = 'id,title,url,excerpt,date-created,date-modified';
+    if (!HELLO_pluginSupportsContentCollection($plugin)) {
+        return array();
+    }
+
+    $what = 'id,title,url,excerpt,date-created,date-modified,type,subtype,image';
     $items = PLG_getItemInfo($plugin, '*', $what, (int) $uid, array(
         'since' => $since,
-        'order' => 'date-desc',
+        'limit' => 200,
+        'order' => 'modified-desc',
     ));
 
     if (!is_array($items)) {
@@ -1104,12 +1148,15 @@ function HELLO_getPluginDigestCandidates($plugin, $since, $uid = 0)
         $normalized = array(
             'source' => $plugin,
             'id' => isset($item['id']) ? (string) $item['id'] : '',
-            'type' => $plugin,
+            'type' => isset($item['type']) && $item['type'] !== ''
+                ? (string) $item['type']
+                : $plugin,
+            'subtype' => isset($item['subtype']) ? (string) $item['subtype'] : '',
             'title' => isset($item['title']) ? (string) $item['title'] : '',
             'url' => isset($item['url']) ? (string) $item['url'] : '',
             'date' => $date_ts > 0 ? date('Y-m-d H:i:s', $date_ts) : '',
             'excerpt' => isset($item['excerpt']) ? (string) $item['excerpt'] : '',
-            'image' => '',
+            'image' => isset($item['image']) ? (string) $item['image'] : '',
             'source_label' => ucfirst($plugin),
         );
 
