@@ -912,6 +912,29 @@ function HELLO_emailSafeImages($html)
 }
 
 /**
+ * Return the operational content boundary for the next digest.
+ *
+ * Hello owns this state in 2.3.0. The core lastemailedstories value is kept
+ * only as a compatibility fallback for upgraded installations.
+ */
+function HELLO_getDigestBoundary()
+{
+    global $_TABLES;
+
+    $value = DB_getItem($_TABLES['vars'], 'value', "name = 'hello_last_digest_sent'");
+    if ($value === '') {
+        $value = DB_getItem($_TABLES['vars'], 'value', "name = 'lastemailedstories'");
+    }
+
+    $dt = DateTime::createFromFormat('Y-m-d H:i:s', $value);
+    if (!$dt || $dt->format('Y-m-d H:i:s') !== $value) {
+        $value = date('Y-m-d H:i:s', strtotime('-7 days'));
+    }
+
+    return $value;
+}
+
+/**
  * Normalize one digest candidate so the admin UI is not tied to Story rows.
  */
 function HELLO_normalizeDigestItem($source, $item)
@@ -1065,13 +1088,7 @@ function HELLO_emailUserTopics($online=true, $test_mode=false, $options=array())
         }
     }
     if ($lastrun === '') {
-        $lastrun = DB_getItem($_TABLES['vars'], 'value', "name = 'hello_last_digest_sent'");
-    }
-    if ($lastrun === '') {
-        $lastrun = DB_getItem($_TABLES['vars'], 'value', "name = 'lastemailedstories'");
-    }
-    if ($lastrun === '') {
-        $lastrun = '1970-01-01 00:00:00';
+        $lastrun = HELLO_getDigestBoundary();
     }
 
     $safe_lastrun = DB_escapeString($lastrun);
