@@ -450,6 +450,22 @@ Digest subscription
 
 The existing `emailfromadmin` preference may still participate in eligibility for administrative mail, but the digest unsubscribe action must be scoped to the digest.
 
+2.3.0 should provide an administrator-facing **subscription event manager** showing who changed state, when, for which scope and through which mechanism.
+
+Minimum event fields:
+
+```text
+user / uid
+scope: campaign | digest
+action: subscribe | unsubscribe
+source: email_link | one_click | admin | profile | bounce
+campaign/digest id when applicable
+date/time
+context/details
+```
+
+The current subscription state and the append-only event history must be stored separately. A new event must be appended rather than overwriting historical evidence.
+
 2.3.0 should document clearly:
 
 - where each subscription preference is stored;
@@ -772,6 +788,7 @@ Requirements:
 2. Remove the current implicit live digest send from the default scheduled-task behavior.
 3. Make manual review/approval the default digest workflow.
 4. Separate digest unsubscribe from the broader `emailfromadmin` mailing preference.
+5. Add persistent scoped subscription state plus append-only subscription event history.
 5. Define the operational “last approved/sent digest” state and administrator-editable content-since date.
 6. Add configurable digest subject and editable introduction to the 2.3.0 design.
 7. Audit configuration labels/tooltips and remove obsolete duplicate admin-menu HTML where unused.
