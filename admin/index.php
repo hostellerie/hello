@@ -5,7 +5,7 @@
 */
 /* Reminder: always indent with 4 spaces (no tabs). */
 // +---------------------------------------------------------------------------+
-// | hello Plugin 2.2.1                                                        |
+// | hello Plugin 2.3.0                                                        |
 // +---------------------------------------------------------------------------+
 // | index.php                                                                 |
 // |                                                                           |
@@ -109,57 +109,148 @@ function HELLO_search_form ($query = '')
     return $display;
 }
 
-function HELLO_send_digest ()
+function HELLO_send_digest()
 {
-    global $_CONF, $_TABLES, $LANG_HELLO01, $PHP_SELF;
+    global $_CONF, $_TABLES, $LANG_HELLO01, $PHP_SELF, $_USER;
 
     $display = '';
 
-    if ($_CONF['emailstories'] == 1) {
-        if (isset($_USER['uid']) && (int) $_USER['uid'] > 1) {
-            $display .= HELLO_testTrackingStatusHtml((int) $_USER['uid'], 'digest');
-        }
-        if (isset ($_POST['sendit']) && !empty ($_POST['sendit']) && SEC_checkToken()) {
-            $display .= '<p>' . $LANG_HELLO01['digest_sent'] . '</p>' . LB;
-			$display .= HELLO_emailUserTopics(true, false);
-        } else if (isset ($_POST['testit']) && !empty ($_POST['testit']) && SEC_checkToken()) {
-            $display .= '<p style="color:green; font-weight:bold;">' . $LANG_HELLO01['test_sent'] . '</p>' . LB;
-            $display .= HELLO_emailUserTopics(true, true);
-        } else if (isset ($_POST['resetit']) && !empty ($_POST['resetit']) && SEC_checkToken()) {
-            DB_query ("UPDATE {$_TABLES['vars']} SET value = NOW() WHERE name = 'lastemailedstories'");
-            $display .= '<p>' . $LANG_HELLO01['digest_reset'] . '</p>' . LB;
-        } else {
-            $display .= '<p>' . $LANG_HELLO01['digest_intro'] . '</p>' . LB;
-            $display .= '<p>' . $LANG_HELLO01['explain_reset'] . '</p>' . LB;
-            $lastrun = DB_getItem ($_TABLES['vars'], 'value', "name = 'lastemailedstories'");
-            if (empty ($lastrun)) {
-                $display .= '<p>' . $LANG_HELLO01['digest_last_sent'] . ' ' . $LANG_HELLO01['never'] . '</p>' . LB;
-				$lastrun = 0;
-            } else {
-                $display .= '<p>' . $LANG_HELLO01['digest_last_sent'] . ' <b>' . $lastrun . '</b></p>' . LB;
-            }
-
-            $sql = "SELECT sid FROM {$_TABLES['stories']} WHERE draft_flag = 0 AND date <= NOW() AND date >= '{$lastrun}'";
-            $result = DB_query ($sql);
-            $count = DB_numRows ($result);
-            if ($count == 0) {
-                $display .= '<p>' . $LANG_HELLO01['no_stories'] . '</p>' . LB;
-            } else {
-                $msg = sprintf ($LANG_HELLO01['num_stories'], $count);
-                $display .= '<p>' . $msg . '</p>' . LB;
-
-                $display .= '<form action="' . $PHP_SELF . '" method="POST"><div>';
-                $display .= '<input type="submit" name="sendit" value="' . $LANG_HELLO01['send_button'] . '">';
-                $display .= '&nbsp;<input type="submit" name="testit" value="' . $LANG_HELLO01['btn_test'] . '" title="' . $LANG_HELLO01['btn_test_title'] . '">';
-                $display .= '&nbsp;<input type="submit" name="resetit" value="' . $LANG_HELLO01['reset_button'] . '">';
-                $display .= '<input type="hidden" name="' . CSRF_TOKEN . '" value="' . SEC_createToken() . '">';
-                $display .= '</div></form>' . LB;
-            }
-    }
-    } else {
+    if ($_CONF['emailstories'] != 1) {
         $display .= '<p>' . $LANG_HELLO01['not_enabled1'] . '</p>' . LB;
         $display .= '<blockquote><code>$_CONF[\'emailstories\'] = 1;</code></blockquote>' . LB;
         $display .= '<p>' . $LANG_HELLO01['not_enabled2'] . '</p>' . LB;
+        return $display;
+    }
+
+    if (isset($_USER['uid']) && (int) $_USER['uid'] > 1) {
+        $display .= HELLO_testTrackingStatusHtml((int) $_USER['uid'], 'digest');
+    }
+
+    $last_sent = DB_getItem($_TABLES['vars'], 'value', "name = 'hello_last_digest_sent'");
+    if ($last_sent === '') {
+        $last_sent = DB_getItem($_TABLES['vars'], 'value', "name = 'lastemailedstories'");
+    }
+    if ($last_sent === '') {
+        $last_sent = date('Y-m-d H:i:s', strtotime('-7 days'));
+    }
+
+    $since = isset($_POST['digest_since']) ? trim($_POST['digest_since']) : $last_sent;
+    $subject = isset($_POST['digest_subject'])
+        ? trim($_POST['digest_subject'])
+        : '[' . $_CONF['site_name'] . '] ' . $LANG_HELLO01['digest_default_subject'];
+    $intro = isset($_POST['digest_intro_text']) ? trim($_POST['digest_intro_text']) : '';
+
+    $selected = array();
+    if (isset($_POST['digest_story']) && is_array($_POST['digest_story'])) {
+        foreach ($_POST['digest_story'] as $sid) {
+            $sid = trim((string) $sid);
+            if ($sid !== '') {
+                $selected[] = $sid;
+            }
+        }
+        $selected = array_values(array_unique($selected));
+    }
+
+    $dt = DateTime::createFromFormat('Y-m-d H:i:s', $since);
+    if (!$dt || $dt->format('Y-m-d H:i:s') !== $since) {
+        $display .= COM_showMessageText($LANG_HELLO01['digest_invalid_since'], 'error');
+        $since = $last_sent;
+    }
+
+    $options = array(
+        'since' => $since,
+        'subject' => $subject,
+        'intro' => $intro,
+        'selected_sids' => $selected,
+    );
+
+    if ((isset($_POST['sendit']) || isset($_POST['testit'])) && SEC_checkToken()) {
+        if (empty($selected)) {
+            $display .= COM_showMessageText($LANG_HELLO01['digest_select_one'], 'warning');
+        } elseif (isset($_POST['testit'])) {
+            $display .= '<p style="color:green; font-weight:bold;">' . $LANG_HELLO01['test_sent'] . '</p>' . LB;
+            $display .= HELLO_emailUserTopics(true, true, $options);
+        } else {
+            $display .= HELLO_emailUserTopics(true, false, $options);
+            return $display;
+        }
+    }
+
+    $safe_since = DB_escapeString($since);
+    $result = DB_query(
+        "SELECT sid, title, date FROM {$_TABLES['stories']} "
+        . "WHERE draft_flag = 0 AND date <= NOW() AND date >= '$safe_since' "
+        . "ORDER BY date DESC"
+    );
+
+    $stories = array();
+    while ($row = DB_fetchArray($result)) {
+        $stories[] = $row;
+    }
+
+    $display .= '<p>' . $LANG_HELLO01['digest_intro'] . '</p>';
+    $display .= '<p><strong>' . $LANG_HELLO01['digest_last_sent'] . '</strong> '
+        . ($last_sent !== '' ? htmlspecialchars($last_sent, ENT_QUOTES, 'UTF-8') : $LANG_HELLO01['never'])
+        . '</p>';
+
+    $display .= '<form action="' . htmlspecialchars($PHP_SELF, ENT_QUOTES, 'UTF-8') . '" method="post">';
+    $display .= '<div style="display:grid; grid-template-columns:180px minmax(240px,1fr); gap:12px; max-width:900px; align-items:start;">';
+
+    $display .= '<label for="digest_since"><strong>' . $LANG_HELLO01['digest_since_label'] . '</strong></label>';
+    $display .= '<input id="digest_since" type="text" name="digest_since" value="'
+        . htmlspecialchars($since, ENT_QUOTES, 'UTF-8') . '" placeholder="YYYY-MM-DD HH:MM:SS" />';
+
+    $display .= '<label for="digest_subject"><strong>' . $LANG_HELLO01['digest_subject_label'] . '</strong></label>';
+    $display .= '<input id="digest_subject" type="text" name="digest_subject" value="'
+        . htmlspecialchars($subject, ENT_QUOTES, 'UTF-8') . '" maxlength="100" />';
+
+    $display .= '<label for="digest_intro_text"><strong>' . $LANG_HELLO01['digest_intro_label'] . '</strong></label>';
+    $display .= '<textarea id="digest_intro_text" name="digest_intro_text" rows="5">'
+        . htmlspecialchars($intro, ENT_QUOTES, 'UTF-8') . '</textarea>';
+
+    $display .= '</div>';
+
+    $display .= '<h4 style="margin-top:22px;">' . $LANG_HELLO01['digest_articles_label'] . '</h4>';
+    if (empty($stories)) {
+        $display .= '<p>' . $LANG_HELLO01['no_stories'] . '</p>';
+    } else {
+        $display .= '<div style="max-width:900px; border:1px solid #ddd; padding:10px 14px;">';
+        foreach ($stories as $story) {
+            $sid = (string) $story['sid'];
+            $checked = empty($_POST) || in_array($sid, $selected, true) ? ' checked' : '';
+            $display .= '<label style="display:block; padding:7px 0; border-bottom:1px solid #eee;">';
+            $display .= '<input type="checkbox" name="digest_story[]" value="'
+                . htmlspecialchars($sid, ENT_QUOTES, 'UTF-8') . '"' . $checked . ' /> ';
+            $display .= '<strong>' . htmlspecialchars($story['title'], ENT_QUOTES, 'UTF-8') . '</strong>';
+            $display .= ' <small>(' . htmlspecialchars($story['date'], ENT_QUOTES, 'UTF-8') . ')</small>';
+            $display .= '</label>';
+        }
+        $display .= '</div>';
+
+        $display .= '<p style="margin-top:14px;">';
+        $display .= '<input type="submit" name="previewit" value="' . $LANG_HELLO01['digest_preview_button'] . '" /> ';
+        $display .= '<input type="submit" name="testit" value="' . $LANG_HELLO01['btn_test'] . '" /> ';
+        $display .= '<input type="submit" name="sendit" value="' . $LANG_HELLO01['digest_queue_button'] . '" />';
+        $display .= '</p>';
+    }
+
+    $display .= '<input type="hidden" name="' . CSRF_TOKEN . '" value="' . SEC_createToken() . '" />';
+    $display .= '</form>';
+
+    if (isset($_POST['previewit']) && SEC_checkToken() && !empty($selected)) {
+        $display .= '<div style="max-width:900px; margin-top:20px; padding:18px; border:1px solid #bbb; background:#fafafa;">';
+        $display .= '<h4>' . $LANG_HELLO01['digest_preview_title'] . '</h4>';
+        $display .= '<p><strong>' . htmlspecialchars($subject, ENT_QUOTES, 'UTF-8') . '</strong></p>';
+        if ($intro !== '') {
+            $display .= '<p>' . nl2br(htmlspecialchars($intro, ENT_QUOTES, 'UTF-8')) . '</p>';
+        }
+        $display .= '<ul>';
+        foreach ($stories as $story) {
+            if (in_array((string) $story['sid'], $selected, true)) {
+                $display .= '<li>' . htmlspecialchars($story['title'], ENT_QUOTES, 'UTF-8') . '</li>';
+            }
+        }
+        $display .= '</ul></div>';
     }
 
     return $display;
