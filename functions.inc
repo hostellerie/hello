@@ -511,7 +511,7 @@ function HELLO_send_hello($manual = false) {
     $max_email_pref = isset($_HE_CONF['max_email']) ? (int) $_HE_CONF['max_email'] : 10;
     $batch_size = min($max_email_pref, $allowed_to_send);
 
-    $sql = "SELECT q.*, h.email_group AS hello_email_group FROM {$_TABLES['hello_queue']} q "
+    $sql = "SELECT q.*, h.kind AS hello_kind FROM {$_TABLES['hello_queue']} q "
          . "INNER JOIN {$_TABLES['hello']} h ON q.hello_id = h.hello_id "
          . "WHERE q.creation <= " . $heure_script . " AND h.status = 0 "
          . "ORDER BY q.uid ASC, q.creation ASC LIMIT 0, $batch_size";
@@ -536,11 +536,9 @@ function HELLO_send_hello($manual = false) {
         $uid = isset($A['uid']) ? (int)$A['uid'] : 0;
         $hello_id = isset($A['hello_id']) ? (int)$A['hello_id'] : 0;
         $hash = MD5($destinataire."fFersh66");
-        $unsubscribe_scope = (
-            isset($A['hello_email_group'])
-            && ($A['hello_email_group'] === $LANG_HELLO01['mdigest']
-                || $A['hello_email_group'] === $LANG_HELLO01['ddigest'])
-        ) ? 'digest' : 'campaign';
+        $unsubscribe_scope = (isset($A['hello_kind']) && $A['hello_kind'] === 'digest')
+            ? 'digest'
+            : 'campaign';
         $unsubscribe_url = $_CONF['site_url'] . '/hello/unsubscribe.php?h=' . $hash
             . '&u=' . $uid . '&hid=' . $hello_id . '&scope=' . $unsubscribe_scope;
         
@@ -975,7 +973,7 @@ function HELLO_emailUserTopics($online=true, $test_mode=false)
 	$content  = addslashes(sprintf ($LANG_HELLO01['num_stories_digest'] . ' > ' . $lastrun, $count));
 	
 	if (!$test_mode) {
-	    $sql_ajout_hello = "INSERT INTO {$_TABLES['hello']} (subject, creation, email_group, quantity, content) VALUES ('$subject', '$creation', '$email_group', '$quantity','$content')";
+	    $sql_ajout_hello = "INSERT INTO {$_TABLES['hello']} (subject, creation, email_group, quantity, content, kind) VALUES ('$subject', '$creation', '$email_group', '$quantity','$content','digest')";
 	    DB_query ($sql_ajout_hello);
 	    $new_hello_id = DB_insertId();
 	} else {
