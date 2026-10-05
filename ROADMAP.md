@@ -790,8 +790,8 @@ The current `hello-2.3.0` branch now includes:
 - append-only subscription event history and administrator viewer;
 - POST + CSRF for administrator subscription changes;
 - structural campaign kind (`campaign` / `digest`);
-- Story-only editorial digest builder with editable content-since date, subject and introduction;
-- individual Story selection;
+- multi-source editorial digest builder with editable content-since date, subject and introduction;
+- source selection and individual content-item selection;
 - preview, administrator test and explicit queue actions;
 - digest boundary advanced only after at least one real recipient is queued;
 - generic provider images are rendered in preview/email when the provider exposes `image`.
@@ -815,6 +815,22 @@ Current state on the development branch:
 | Tickets | Not an editorial source | Private transactional user/admin workflow; keep outside editorial digest discovery |
 
 Hello must not add direct SQL fallbacks for external plugins merely to make them appear as sources. The owning plugin should expose the shared collection contract first.
+
+### Normalized provider field matrix
+
+The currently verified providers expose the following fields relevant to Hello:
+
+| Provider | title | url | excerpt | dates | image | type/subtype |
+|---|---:|---:|---:|---:|---:|---:|
+| Documents | yes | yes | yes | created + modified | yes | yes |
+| Maps | yes | yes | yes | created + modified | optional/none | yes |
+| Videos | yes | yes | yes | created + modified | yes | yes |
+| Forum | yes | yes | yes | created + modified | optional/none | yes |
+| MediaGallery 2.0.0 | yes | yes | yes | created + modified* | yes | yes |
+
+`* MediaGallery currently maps both created and modified to its authoritative media upload timestamp until a distinct media-modified timestamp exists.
+
+Hello must treat `excerpt`, `image`, source label and date as optional presentation fields. Only a stable ID, title and canonical/public URL are required for an item to become a digest candidate.
 
 
 
