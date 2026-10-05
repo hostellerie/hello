@@ -111,7 +111,7 @@ function HELLO_search_form ($query = '')
 
 function HELLO_send_digest()
 {
-    global $_CONF, $_TABLES, $LANG_HELLO01, $PHP_SELF, $_USER;
+    global $_CONF, $_TABLES, $LANG_HELLO01, $PHP_SELF, $_USER, $_PLUGINS;
 
     $display = '';
 
@@ -134,12 +134,31 @@ function HELLO_send_digest()
         : '[' . $_CONF['site_name'] . '] ' . $LANG_HELLO01['digest_default_subject'];
     $intro = isset($_POST['digest_intro_text']) ? trim($_POST['digest_intro_text']) : '';
 
+    $sources = isset($_POST['digest_source']) && is_array($_POST['digest_source'])
+        ? array_values(array_unique($_POST['digest_source']))
+        : array('stories');
+
     $selected = array();
+    if (isset($_POST['digest_item']) && is_array($_POST['digest_item'])) {
+        foreach ($_POST['digest_item'] as $item_key) {
+            $item_key = trim((string) $item_key);
+            if (strpos($item_key, ':') !== false) {
+                $selected[] = $item_key;
+            }
+        }
+        $selected = array_values(array_unique($selected));
+    }
+
     if (isset($_POST['digest_story']) && is_array($_POST['digest_story'])) {
         foreach ($_POST['digest_story'] as $sid) {
             $sid = trim((string) $sid);
             if ($sid !== '') {
                 $selected[] = $sid;
+            }
+        }
+        foreach (array_values(array_unique($selected)) as $legacy_sid) {
+            if (strpos($legacy_sid, ':') === false) {
+                $selected[] = 'stories:' . $legacy_sid;
             }
         }
         $selected = array_values(array_unique($selected));
@@ -155,7 +174,8 @@ function HELLO_send_digest()
         'since' => $since,
         'subject' => $subject,
         'intro' => $intro,
-        'selected_sids' => $selected,
+        'sources' => $sources,
+        'selected_items' => $selected,
     );
 
     if ((isset($_POST['sendit']) || isset($_POST['testit'])) && SEC_checkToken()) {
@@ -170,7 +190,7 @@ function HELLO_send_digest()
         }
     }
 
-    $stories = HELLO_getStoryDigestCandidates($since);
+    $stories = HELLO_getDigestCandidates($sources, $since, (int) $_USER['uid']);
 
     $display .= '<p>' . $LANG_HELLO01['digest_intro'] . '</p>';
     $display .= '<p><strong>' . $LANG_HELLO01['digest_last_sent'] . '</strong> '
@@ -194,17 +214,27 @@ function HELLO_send_digest()
 
     $display .= '</div>';
 
+    $display .= '<h4 style="margin-top:22px;">' . $LANG_HELLO01['digest_sources_label'] . '</h4>';
+    $display .= '<label style="margin-right:18px;"><input type="checkbox" name="digest_source[]" value="stories"'
+        . (in_array('stories', $sources, true) ? ' checked' : '') . ' /> '
+        . $LANG_HELLO01['digest_source_stories'] . '</label>';
+    if (in_array('staticpages', $_PLUGINS, true)) {
+        $display .= '<label><input type="checkbox" name="digest_source[]" value="staticpages"'
+            . (in_array('staticpages', $sources, true) ? ' checked' : '') . ' /> '
+            . $LANG_HELLO01['digest_source_staticpages'] . '</label>';
+    }
+
     $display .= '<h4 style="margin-top:22px;">' . $LANG_HELLO01['digest_articles_label'] . '</h4>';
     if (empty($stories)) {
         $display .= '<p>' . $LANG_HELLO01['no_stories'] . '</p>';
     } else {
         $display .= '<div style="max-width:900px; border:1px solid #ddd; padding:10px 14px;">';
         foreach ($stories as $story) {
-            $sid = (string) $story['id'];
-            $checked = empty($_POST) || in_array($sid, $selected, true) ? ' checked' : '';
+            $item_key = (string) $story['source'] . ':' . (string) $story['id'];
+            $checked = empty($_POST) || in_array($item_key, $selected, true) ? ' checked' : '';
             $display .= '<label style="display:block; padding:7px 0; border-bottom:1px solid #eee;">';
-            $display .= '<input type="checkbox" name="digest_story[]" value="'
-                . htmlspecialchars($sid, ENT_QUOTES, 'UTF-8') . '"' . $checked . ' /> ';
+            $display .= '<input type="checkbox" name="digest_item[]" value="'
+                . htmlspecialchars($item_key, ENT_QUOTES, 'UTF-8') . '"' . $checked . ' /> ';
             $display .= '<strong>' . htmlspecialchars($story['title'], ENT_QUOTES, 'UTF-8') . '</strong>';
             $display .= ' <small>(' . htmlspecialchars($story['source_label'], ENT_QUOTES, 'UTF-8')
                 . ' — ' . htmlspecialchars($story['date'], ENT_QUOTES, 'UTF-8') . ')</small>';
@@ -231,7 +261,7 @@ function HELLO_send_digest()
         }
         $display .= '<ul>';
         foreach ($stories as $story) {
-            if (in_array((string) $story['id'], $selected, true)) {
+            if (in_array((string) $story['source'] . ':' . (string) $story['id'], $selected, true)) {
                 $display .= '<li>' . htmlspecialchars($story['title'], ENT_QUOTES, 'UTF-8') . '</li>';
             }
         }
