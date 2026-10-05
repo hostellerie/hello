@@ -5,7 +5,7 @@
 */
 /* Reminder: always indent with 4 spaces (no tabs). */
 // +---------------------------------------------------------------------------+
-// | hello Plugin 2.2.1                                                        |
+// | hello Plugin 2.3.0                                                        |
 // +---------------------------------------------------------------------------+
 // | Installation SQL                                                          |
 // +---------------------------------------------------------------------------+
@@ -103,6 +103,34 @@ CREATE TABLE {$_TABLES['hello_links']} (
   UNIQUE KEY token (token),
   KEY hello_id (hello_id),
   KEY uid (uid)
+) ENGINE=MyISAM
+";
+
+$_SQL[] = "
+CREATE TABLE {$_TABLES['hello_subscriptions']} (
+  uid mediumint(8) NOT NULL,
+  scope varchar(16) NOT NULL default 'campaign',
+  subscribed tinyint(1) NOT NULL default '1',
+  updated_at datetime NOT NULL,
+  PRIMARY KEY (uid, scope),
+  KEY scope_state (scope, subscribed)
+) ENGINE=MyISAM
+";
+
+$_SQL[] = "
+CREATE TABLE {$_TABLES['hello_subscription_events']} (
+  event_id int(11) NOT NULL auto_increment,
+  uid mediumint(8) NOT NULL default '0',
+  scope varchar(16) NOT NULL default 'campaign',
+  action varchar(16) NOT NULL default '',
+  source varchar(32) NOT NULL default '',
+  hello_id int(11) NOT NULL default '0',
+  details varchar(255) NOT NULL default '',
+  created_at datetime NOT NULL,
+  PRIMARY KEY (event_id),
+  KEY uid_created (uid, created_at),
+  KEY scope_action (scope, action),
+  KEY hello_id (hello_id)
 ) ENGINE=MyISAM
 ";
 
