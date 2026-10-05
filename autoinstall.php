@@ -2,7 +2,7 @@
 
 /* Reminder: always indent with 4 spaces (no tabs). */
 // +---------------------------------------------------------------------------+
-// | hello Plugin 2.2.1                                                        |
+// | hello Plugin 2.3.0                                                        |
 // +---------------------------------------------------------------------------+
 // | autoinstall.php                                                           |
 // |                                                                           |
@@ -53,7 +53,7 @@ function plugin_autoinstall_hello($pi_name)
     $info = array(
         'pi_name'         => $pi_name,
         'pi_display_name' => $pi_display_name,
-        'pi_version'      => '2.2.1',
+        'pi_version'      => '2.3.0',
         'pi_gl_version'   => '2.1.1',
         'pi_homepage'     => 'http://geeklog.fr'
     );
@@ -77,7 +77,9 @@ function plugin_autoinstall_hello($pi_name)
         'hello_queue',
         'hello_stats',
         'hello_urls_clicked',
-        'hello_links'
+        'hello_links',
+        'hello_subscriptions',
+        'hello_subscription_events'
     );
 
     $inst_parms = array(
