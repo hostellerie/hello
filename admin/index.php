@@ -276,7 +276,16 @@ function HELLO_send_digest()
         $display .= '<ul>';
         foreach ($stories as $story) {
             if (in_array((string) $story['source'] . ':' . (string) $story['id'], $selected, true)) {
-                $display .= '<li>' . htmlspecialchars($story['title'], ENT_QUOTES, 'UTF-8') . '</li>';
+                $display .= '<li style="margin-bottom:12px;">';
+                if (!empty($story['image'])) {
+                    $display .= '<img src="' . htmlspecialchars($story['image'], ENT_QUOTES, 'UTF-8')
+                        . '" alt="" style="max-width:140px; height:auto; display:block; margin:0 0 6px 0;" />';
+                }
+                $display .= '<strong>' . htmlspecialchars($story['title'], ENT_QUOTES, 'UTF-8') . '</strong>';
+                if (!empty($story['source_label'])) {
+                    $display .= ' <small>(' . htmlspecialchars($story['source_label'], ENT_QUOTES, 'UTF-8') . ')</small>';
+                }
+                $display .= '</li>';
             }
         }
         $display .= '</ul></div>';
