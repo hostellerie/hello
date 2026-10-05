@@ -2,7 +2,7 @@
 
 /* Reminder: always indent with 4 spaces (no tabs). */
 // +---------------------------------------------------------------------------+
-// | hello Plugin 2.2.1                                                        |
+// | hello Plugin 2.3.0                                                        |
 // +---------------------------------------------------------------------------+
 // | subscribers.php
 // |                                                                           |
@@ -55,12 +55,9 @@ $action = isset($_REQUEST['action']) ? $_REQUEST['action'] : '';
 $uid = isset($_REQUEST['uid']) ? (int)$_REQUEST['uid'] : 0;
 if ($action == 'toggle' && $uid > 1 && SEC_checkToken()) {
     $new_state = (isset($_REQUEST['state']) && $_REQUEST['state'] == '1') ? 1 : 0;
-    if (isset($_TABLES['user_attributes'])) {
-        DB_query("UPDATE {$_TABLES['user_attributes']} SET emailfromadmin = $new_state WHERE uid = $uid");
-    } else {
-        DB_query("UPDATE {$_TABLES['userprefs']} SET emailfromadmin = $new_state WHERE uid = $uid");
+    if (HELLO_setSubscription($uid, 'campaign', $new_state, 'admin', 0, 'subscribers.php')) {
+        $display .= COM_showMessageText($LANG_HELLO01['status_updated_success'], 'success');
     }
-    $display .= COM_showMessageText($LANG_HELLO01['status_updated_success'], 'success');
 }
 
 // Build Subscribers List
@@ -89,12 +86,14 @@ $text_arr = array(
 $emailfromadmin_field = isset($_TABLES['user_attributes']) ? 'ua.emailfromadmin' : 'up.emailfromadmin';
 $prefs_table = isset($_TABLES['user_attributes']) ? $_TABLES['user_attributes'] . ' ua' : $_TABLES['userprefs'] . ' up';
 
-$sql = "SELECT u.uid, u.username, u.email, $emailfromadmin_field AS emailfromadmin,
+$sql = "SELECT u.uid, u.username, u.email,
+        CASE WHEN hs.subscribed IS NULL THEN $emailfromadmin_field ELSE hs.subscribed END AS emailfromadmin,
         (SELECT SUM(sent) FROM {$_TABLES['hello_stats']} WHERE uid = u.uid) as total_sent,
         (SELECT SUM(opened) FROM {$_TABLES['hello_stats']} WHERE uid = u.uid) as total_opened,
         (SELECT COUNT(click_id) FROM {$_TABLES['hello_urls_clicked']} WHERE uid = u.uid) as total_clicks
         FROM {$_TABLES['users']} u
-        LEFT JOIN $prefs_table ON u.uid = ua.uid 
+        LEFT JOIN $prefs_table ON u.uid = ua.uid
+        LEFT JOIN {$_TABLES['hello_subscriptions']} hs ON hs.uid = u.uid AND hs.scope = 'campaign'
         WHERE u.uid > 1 AND u.status = 3";
         
 // Fix join condition alias based on table
