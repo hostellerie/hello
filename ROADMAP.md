@@ -17,7 +17,8 @@ Hello should become a clean **communication service** that can consume structure
 Hello already provides:
 
 - HTML email campaigns to Geeklog user groups;
-- automated story digests;
+- story digest generation and preview;
+- legacy scheduled digest code that must be changed in 2.3.0 so live digest delivery is never automatic by default;
 - personalized messages;
 - queued bulk delivery;
 - configurable messages per execution;
@@ -75,7 +76,7 @@ Hello must not require ChatGPT, Hub or a future Marketing plugin in order to fun
 
 Move from a **Stories-specific digest implementation** toward a **generic structured-content digest capability** without breaking current story digests.
 
-Today, automated digest logic directly queries Geeklog Stories.
+Today, the inherited digest logic directly queries Geeklog Stories and can be invoked by Geeklog's scheduled-task path. This inherited automatic-send behavior is **not** the target behavior for 2.3.0.
 
 The target direction is:
 
@@ -86,6 +87,7 @@ Maps
 Videos
 Forum
 Store
+Tickets
 Static Pages
 other compatible content plugins
         |
@@ -97,6 +99,92 @@ other compatible content plugins
 ```
 
 The existing Stories path should remain available as a compatibility fallback until the generic path is proven.
+
+---
+
+## 3A. Digest delivery and editorial approval policy
+
+Hello 2.3.0 must treat **digest preparation** and **digest delivery** as separate operations.
+
+The default behavior must be:
+
+```text
+new content detected
+        ↓
+digest candidates prepared
+        ↓
+administrator reviews / edits
+        ↓
+administrator explicitly queues or sends
+        ↓
+delivery
+```
+
+A scheduled task may detect new content, refresh candidate lists or prepare a draft, but it must **not queue or send a live digest automatically by default**.
+
+### Required default
+
+```text
+Automatic live digest sending = disabled
+```
+
+If a future automatic-send option is implemented, it must:
+
+- be an explicit Hello configuration option;
+- default to disabled on fresh installations and upgrades;
+- clearly state that enabling it can send email without administrator review;
+- never be inferred merely from Geeklog's global `emailstories` setting;
+- use the same recipient, unsubscribe, rendering, throttling and statistics paths as a manually approved digest;
+- provide a visible last-run / next-eligible-run status;
+- remain independently disableable without disabling queue processing.
+
+### Digest editorial workflow
+
+The administrator should be able to prepare a digest as a small newsletter with:
+
+- configurable subject;
+- editable introduction message;
+- candidate content collected since a selected date;
+- default start date based on the last **approved/sent digest**, not merely the last scheduled-task execution;
+- source selection;
+- individual item selection/deselection;
+- preview;
+- administrator test send;
+- explicit final queue/send action.
+
+Suggested workflow:
+
+```text
+Last approved digest: 2026-09-17 08:30
+
+Collect content since:
+[2026-09-17 08:30]
+
+Subject:
+[LE CORDISTE] Les dernières publications
+
+Introduction:
+[editable message]
+
+Sources:
+[x] Stories
+[x] Static Pages
+[x] Documents
+[x] Maps
+[ ] Forum
+[ ] Store
+[ ] Tickets
+
+Items:
+[x] Article A
+[x] Article B
+[ ] Article C
+[x] Document D
+
+[Preview] [Send test] [Queue digest]
+```
+
+The existing `lastemailedstories` value may be used as a migration/fallback input, but 2.3.0 should model the digest boundary as operational state owned by Hello rather than as a hidden side effect of a scheduled send.
 
 ---
 
@@ -212,6 +300,7 @@ Maps           disabled
 Videos         enabled
 Forum          disabled
 Store          disabled
+Tickets        disabled
 Static Pages   enabled
 ```
 
@@ -226,6 +315,17 @@ category/topic filter
 include image
 source heading
 ```
+
+The first 2.3.0 editorial controls should remain simple and useful:
+
+- subject;
+- introduction;
+- content-since date;
+- enabled sources;
+- individual candidate selection;
+- preview;
+- test;
+- explicit queue/send.
 
 Start simple before introducing complex rules.
 
@@ -337,11 +437,23 @@ Default external access should favor aggregated data.
 
 ## 11. Subscriber privacy and consent boundaries
 
-Hello currently relies on Geeklog's registered-user email preference (`emailfromadmin`) for subscription state.
+Hello currently relies heavily on Geeklog's registered-user email preference (`emailfromadmin`) for subscription state.
 
-2.3.0 should preserve that behavior while documenting clearly:
+That is too broad for the 2.3.0 digest model. A user who chooses **unsubscribe from digest** must not thereby opt out of unrelated Hello/admin mailing-list messages.
 
-- where subscription preference is stored;
+2.3.0 must therefore define separate consent/subscription boundaries for at least:
+
+```text
+Hello/admin mailing eligibility
+Digest subscription
+```
+
+The existing `emailfromadmin` preference may still participate in eligibility for administrative mail, but the digest unsubscribe action must be scoped to the digest.
+
+2.3.0 should document clearly:
+
+- where each subscription preference is stored;
+- which unsubscribe scope applies to campaigns versus digests;
 - which actions can change it;
 - which service methods may expose it;
 - which data is personally identifiable;
@@ -442,9 +554,13 @@ The service API should return a normalized state even if legacy persisted values
 
 ## 15. Draft versus send safety
 
-A key 2.3.0 rule:
+Key 2.3.0 rules:
 
 > **Creating or updating a campaign must never implicitly send it.**
+
+> **Preparing, refreshing or scheduling a digest must never implicitly send a live digest unless the administrator has explicitly enabled a dedicated automatic-send option.**
+
+The automatic-send option, if implemented, must be disabled by default.
 
 Separate actions:
 
@@ -477,6 +593,8 @@ Requirements:
 ## 17. Digest rendering
 
 Refactor digest rendering so it consumes normalized items rather than Story database rows.
+
+Rendering must be usable by preview, administrator test and live delivery so that approval is performed against substantially the same content that will be queued.
 
 A generic item renderer should support graceful degradation:
 
@@ -648,48 +766,59 @@ Requirements:
 
 ## 25. Proposed 2.3.0 implementation order
 
-### P0 — Audit and safety
+### P0 — Audit, consent and send safety
 
 1. Document current campaign/digest/queue flows.
-2. Identify Story-specific assumptions.
-3. Review subscriber-data exposure and state-changing endpoints.
-4. Define normalized campaign and statistics helpers.
+2. Remove the current implicit live digest send from the default scheduled-task behavior.
+3. Make manual review/approval the default digest workflow.
+4. Separate digest unsubscribe from the broader `emailfromadmin` mailing preference.
+5. Define the operational “last approved/sent digest” state and administrator-editable content-since date.
+6. Add configurable digest subject and editable introduction to the 2.3.0 design.
+7. Audit configuration labels/tooltips and remove obsolete duplicate admin-menu HTML where unused.
+8. Align configuration declarations with the Memorandum configuration guidance.
+9. Identify Story-specific assumptions.
+10. Review subscriber-data exposure and state-changing endpoints.
+11. Define normalized campaign and statistics helpers.
 
 ### P1 — Internal service boundaries
 
-5. Centralize campaign statistics.
-6. Centralize queue status/control.
-7. Separate draft, test and live-send operations cleanly.
-8. Define normalized campaign states.
+12. Centralize campaign statistics.
+13. Centralize queue status/control.
+14. Separate draft, test and live-send operations cleanly.
+15. Define normalized campaign states.
 
-### P2 — Generic content digests
+### P2 — Generic editorial digests
 
-9. Add normalized digest-item model.
-10. Keep Stories adapter.
-11. Add generic `PLG_getItemInfo()` collection adapter.
-12. Add administrator source selection.
-13. Add multi-source rendering tests.
+16. Add normalized digest-item model.
+17. Keep Stories adapter.
+18. Add generic `PLG_getItemInfo()` collection adapter.
+19. Add administrator source selection.
+20. Add individual candidate selection/deselection.
+21. Add digest preview and reusable test/live rendering path.
+22. Add multi-source rendering tests.
+23. Validate at least Stories plus one non-Story provider; include Tickets in provider discovery where it exposes the shared contract.
 
 ### P3 — Hub integration
 
-14. Define optional Hub service consumption.
-15. Support Hub-provided candidate/context lists without direct Hub SQL.
-16. Test thematic digest workflow.
+24. Define optional Hub service consumption.
+25. Support Hub-provided candidate/context lists without direct Hub SQL.
+26. Test thematic digest workflow.
 
 ### P4 — External/resource readiness
 
-17. Expose safe read-only Hello services.
-18. Add campaign-draft service.
-19. Add administrator test service.
-20. Add queue-control services.
-21. Add live-send service only after permissions/audit review.
+27. Expose safe read-only Hello services.
+28. Add campaign-draft service.
+29. Add administrator test service.
+30. Add queue-control services.
+31. Add live-send service only after permissions/audit review.
 
 ### P5 — Documentation and compatibility
 
-22. Document API/service capabilities.
-23. Test Geeklog 2.1.1 and 2.2.2.
-24. Test PHP 5.6 and current supported PHP 8.x target.
-25. Test multisite and staggered shared-file upgrades.
+32. Document API/service capabilities.
+33. Document digest consent and automatic-send semantics.
+34. Test Geeklog 2.1.1 and 2.2.2.
+35. Test PHP 5.6 and current supported PHP 8.x target.
+36. Test multisite and staggered shared-file upgrades.
 
 ---
 
@@ -697,7 +826,12 @@ Requirements:
 
 Hello 2.3.0 should be considered ready when:
 
-- existing campaigns and Story digests still work;
+- existing campaigns still work;
+- Story digest preparation still works without automatic live sending by default;
+- a live digest requires explicit administrator queue/send approval unless a dedicated automatic-send option has been explicitly enabled;
+- any automatic-send option is disabled by default;
+- digest unsubscribe does not disable unrelated Hello/admin mailing eligibility;
+- the administrator can see and control the digest content-since boundary, subject and introduction;
 - digest rendering accepts normalized content items;
 - at least one compatible non-Story source can be consumed through a generic Geeklog contract;
 - Hub integration is optional and does not create direct dependencies;
