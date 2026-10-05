@@ -118,7 +118,9 @@ The last-digest boundary advances only after at least one real recipient has bee
 
 Stories use Hello's native adapter. Static Pages are consumed through Geeklog's shared Item Info contract.
 
-Hello automatically discovers enabled providers that implement `plugin_getiteminfo_PLUGIN()`. Known candidates include Documents, Maps, Videos, Forum, Store and Tickets. They become available in the digest source selector once their owning plugin exposes the shared collection contract.
+Hello automatically discovers enabled editorial providers that expose both `plugin_getiteminfo_PLUGIN()` and a confirmed content-collection capability. Static Pages remains a core compatibility exception because supported Geeklog versions already expose its collection contract without the newer capability declaration.
+
+Verified external providers are Documents, Maps, Videos and the updated Forum branches. Store is intentionally deferred until its public-product contract is implemented. Tickets is intentionally excluded because it is private transactional user/administrator content rather than an editorial source.
 
 Hello intentionally does not query external plugin tables directly.
 
