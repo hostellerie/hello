@@ -793,7 +793,8 @@ The current `hello-2.3.0` branch now includes:
 - Story-only editorial digest builder with editable content-since date, subject and introduction;
 - individual Story selection;
 - preview, administrator test and explicit queue actions;
-- digest boundary advanced only after at least one real recipient is queued.
+- digest boundary advanced only after at least one real recipient is queued;
+- generic provider images are rendered in preview/email when the provider exposes `image`.
 
 The Story implementation is now behind a normalized item/source boundary. Hello also auto-discovers enabled plugins exposing the shared `plugin_getiteminfo_PLUGIN()` contract, so compatible providers can appear without Hello-specific SQL or release coupling.
 
@@ -809,6 +810,7 @@ Current state on the development branch:
 | Maps | Ready when plugin branch is installed | Verified collection contract with permissions, `since`, `limit`, `order` |
 | Videos | Ready when plugin branch is installed | Verified persistent/editorial collection with `since`, `limit`, `order` |
 | Forum | Ready on updated branches | Collection contract aligned with permissions, `since`, `limit`, `order` and capabilities |
+| MediaGallery | Ready with MediaGallery 2.0.0 | Permission-aware media collection with `since`, `limit`, `order`, normalized thumbnail/image |
 | Store | Deferred | Public product contract is planned in Store roadmap after catalogue/publication semantics stabilize |
 | Tickets | Not an editorial source | Private transactional user/admin workflow; keep outside editorial digest discovery |
 
@@ -847,7 +849,7 @@ Hello must not add direct SQL fallbacks for external plugins merely to make them
 20. Add individual candidate selection/deselection.
 21. Add digest preview and reusable test/live rendering path.
 22. Add multi-source rendering tests.
-23. Validate Stories plus Static Pages and at least one external provider (Documents, Maps, Videos or Forum). Keep Tickets outside editorial provider discovery.
+23. Validate Stories plus Static Pages and external providers (Documents, Maps, Videos, Forum and MediaGallery 2.0.0). Keep Tickets outside editorial provider discovery.
 
 ### P3 — Hub integration
 
