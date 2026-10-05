@@ -56,6 +56,7 @@ $_HE_DEFAULT['hourly_limit'] = 150;
 $_HE_DEFAULT['track_clicks'] = 1;
 $_HE_DEFAULT['track_opens'] = 1;
 $_HE_DEFAULT['enable_auto_cron'] = 0;
+$_HE_DEFAULT['enable_auto_cron'] = 0;
 
 
 /**
@@ -74,19 +75,19 @@ function plugin_initconfig_hello()
     $c = config::get_instance();
     if (!$c->group_exists('hello')) {
 
-        //This is main subgroup #0
-		$c->add('sg_0', NULL, 'subgroup', 0, 0, NULL, 0, true, 'hello');
-		
-		//This is fieldset #1  in subgroup #0   
-		$c->add('fs_01', NULL, 'fieldset', 0, 0, NULL, 0, true, 'hello');
+        $c->add('sg_0', NULL, 'subgroup', 0, 0, NULL, 0, true, 'hello');
+        $c->add('tab_main', NULL, 'tab', 0, 0, NULL, 0, true, 'hello', 0);
+        $c->add('fs_01', NULL, 'fieldset', 0, 0, NULL, 0, true, 'hello', 0);
         $c->add('max_email', $_HE_DEFAULT['max_email'],
-                'text', 0, 0, 0, 10, true, 'hello');				
+                'text', 0, 0, NULL, 10, true, 'hello', 0);
         $c->add('hourly_limit', $_HE_DEFAULT['hourly_limit'],
-                'text', 0, 0, 0, 20, true, 'hello');
+                'text', 0, 0, NULL, 20, true, 'hello', 0);
         $c->add('track_clicks', $_HE_DEFAULT['track_clicks'],
-                'select', 0, 0, 0, 30, true, 'hello');
+                'select', 0, 0, 0, 30, true, 'hello', 0);
         $c->add('track_opens', $_HE_DEFAULT['track_opens'],
-                'select', 0, 0, 0, 40, true, 'hello');
+                'select', 0, 0, 0, 40, true, 'hello', 0);
+        $c->add('enable_auto_cron', $_HE_DEFAULT['enable_auto_cron'],
+                'select', 0, 0, 0, 50, true, 'hello', 0);
     }
 
     return true;
