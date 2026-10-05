@@ -2,7 +2,7 @@
 
 /* Reminder: always indent with 4 spaces (no tabs). */
 // +---------------------------------------------------------------------------+
-// | hello Plugin 2.2.1                                                        |
+// | hello Plugin 2.3.0                                                        |
 // +---------------------------------------------------------------------------+
 // | french_france_utf-8.php
 // |                                                                           |
@@ -261,10 +261,15 @@ $LANG_configsections['hello'] = array(
 );
 
 $LANG_confignames['hello'] = array(
-    'max_email' => 'Nombre d\'emails à envoyer par exécution <abbr title="Nombre maximal de messages traités lors d’un passage de la file d’envoi. Il s’agit de la taille d’un lot, et non du plafond horaire.">?</abbr>',
-    'hourly_limit' => 'Plafond maximum horaire (sécurité/throttling) <abbr title="Limite de sécurité du nombre total de newsletters envoyées pendant une heure. Hello réduit automatiquement la taille du lot lorsque ce plafond approche. Utilisez 0 uniquement si vous souhaitez volontairement désactiver cette limite horaire.">?</abbr>',
-    'track_clicks' => 'Suivre les clics avec des liens courts du site <abbr title="Remplace les liens éligibles par des liens courts du site afin de comptabiliser les clics. Désactivez cette option pour conserver les URL directes et ne pas enregistrer de statistiques de clics.">?</abbr>',
-    'track_opens' => 'Suivre les ouvertures avec un pixel 1×1 <abbr title="Ajoute une petite image invisible pour estimer les ouvertures. Ces statistiques restent approximatives car certains logiciels bloquent les images ou utilisent des relais de confidentialité.">?</abbr>',
+    'max_email' => 'Emails par lot',
+    'hourly_limit' => 'Limite horaire',
+    'track_clicks' => 'Suivi des clics',
+    'track_opens' => 'Suivi des ouvertures',
+    'enable_auto_cron' => 'Traitement auto de la file',
+);
+
+$LANG_tab['hello'] = array(
+    'tab_main' => 'Principal',
 );
 
 $LANG_configsubgroups['hello'] = array(
