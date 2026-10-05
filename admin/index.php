@@ -126,13 +126,7 @@ function HELLO_send_digest()
         $display .= HELLO_testTrackingStatusHtml((int) $_USER['uid'], 'digest');
     }
 
-    $last_sent = DB_getItem($_TABLES['vars'], 'value', "name = 'hello_last_digest_sent'");
-    if ($last_sent === '') {
-        $last_sent = DB_getItem($_TABLES['vars'], 'value', "name = 'lastemailedstories'");
-    }
-    if ($last_sent === '') {
-        $last_sent = date('Y-m-d H:i:s', strtotime('-7 days'));
-    }
+    $last_sent = HELLO_getDigestBoundary();
 
     $since = isset($_POST['digest_since']) ? trim($_POST['digest_since']) : $last_sent;
     $subject = isset($_POST['digest_subject'])
