@@ -333,6 +333,11 @@ function plugin_upgrade_hello()
                     }
                 }
 
+                $kind_column = DB_query("SHOW COLUMNS FROM {$_TABLES['hello']} LIKE 'kind'");
+                if (DB_numRows($kind_column) == 0) {
+                    DB_query("ALTER TABLE {$_TABLES['hello']} ADD COLUMN kind varchar(16) NOT NULL default 'campaign' AFTER status");
+                }
+
                 // 2.3.0: browser-triggered queue processing is opt-in.
                 $c = config::get_instance();
                 $c->add('enable_auto_cron', 0, 'select', 0, 0, 0, 50, true, 'hello', 0);
