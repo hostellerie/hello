@@ -332,6 +332,11 @@ function plugin_upgrade_hello()
                         DB_query($sql);
                     }
                 }
+
+                // 2.3.0: browser-triggered queue processing is opt-in.
+                $c = config::get_instance();
+                $c->add('enable_auto_cron', 0, 'select', 0, 0, 0, 50, true, 'hello', 0);
+
                 $current_version = '2.3.0';
                 break;
 
@@ -380,6 +385,8 @@ function hello_admin_menu($title = '', $instructions = '', $icon = '') {
               'text' => $LANG_HELLO01['read_email']),
         array('url'  => $_CONF['site_admin_url'] . '/plugins/hello/subscribers.php',
               'text' => $LANG_HELLO01['crm_dashboard']),
+        array('url'  => $_CONF['site_admin_url'] . '/plugins/hello/subscription_events.php',
+              'text' => $LANG_HELLO01['subscription_events']),
         array('url'  => $_CONF['site_admin_url'] . '/plugins/hello/manual.php',
               'text' => $LANG_HELLO01['manual']),
         array('url'  => $_CONF['site_admin_url'] . '/plugins/hello/bounces.php',
