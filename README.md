@@ -4,14 +4,16 @@
 ![Geeklog](https://img.shields.io/badge/Geeklog-2.1.1%20to%202.2.2-green.svg)
 ![PHP](https://img.shields.io/badge/PHP-5.6%20to%208.x-green.svg)
 
-**Hello 2.2.1** is a newsletter, digest and email campaign plugin for Geeklog CMS. It provides queued bulk delivery, automated article digests, subscriber management, engagement statistics, configurable throttling and standards-based unsubscribe handling.
+**Hello 2.2.1** is a newsletter, digest and email campaign plugin for Geeklog CMS. It provides queued bulk delivery, article digests, subscriber management, engagement statistics, configurable throttling and standards-based unsubscribe handling.
 
 Version 2.2.1 focuses on deliverability, safer tracking, administrator testing, queue control and security while preserving compatibility with Geeklog 2.1.1 through 2.2.2.
+
+> **Development note for the `hello-2.3.0` branch:** the inherited 2.2.1 code still contains a scheduled-task path that can prepare and send a story digest automatically. This is legacy behavior and is **not** the 2.3.0 target. Hello 2.3.0 will default to administrator review/approval before a live digest is queued or sent. Any future automatic-send mode must be a dedicated option, explicitly enabled and disabled by default.
 
 ## Key features
 
 - Send HTML email campaigns to Geeklog user groups.
-- Build automated digests from recently published stories.
+- Build digests from recently published stories.
 - Keep digest tracking and deliverability simple with exactly one promotional link per article: the final read-article call-to-action. Titles are plain text and links embedded in excerpts are removed while visible content is preserved.
 - Normalize digest images for email clients by removing fixed width/height values and applying responsive `max-width:100%` styling, preventing blocked remote images from reserving an oversized layout box.
 - Use the canonical `article.php?story=<sid>` article URL in digest links so they work even when Geeklog URL rewriting and URL routing are disabled.
@@ -103,6 +105,34 @@ Two settings have different purposes:
 Queued recipients are selected by ascending UID and then by queue creation time. The main administrator account, commonly UID 2, therefore receives a real campaign near the beginning when that account is an eligible recipient.
 
 Queue-changing administration actions use POST requests protected by Geeklog CSRF tokens.
+
+## Digest delivery policy for 2.3.0
+
+Hello 2.3.0 separates content detection, digest preparation and live delivery.
+
+The target default workflow is:
+
+```text
+detect new content
+→ prepare digest draft
+→ review/edit
+→ preview or send administrator test
+→ explicitly queue/send
+```
+
+A scheduled task may refresh digest candidates or prepare a draft, but it must not send a live digest automatically by default.
+
+A future **automatic digest sending** option may be offered, but it must be:
+
+- separate from queue processing;
+- disabled by default;
+- explicitly enabled by an administrator;
+- clearly described as an unattended live-send option;
+- based on the same rendering, recipient, throttling and unsubscribe rules as manual delivery.
+
+The 2.3.0 digest editor is planned to expose the content-since date, subject, introduction, source selection and individual content selection before approval.
+
+Digest unsubscribe will also be separated from the broader Geeklog `emailfromadmin` preference so that leaving the digest does not automatically opt a member out of unrelated Hello/admin mailings.
 
 ## Cron usage
 
