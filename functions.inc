@@ -1632,8 +1632,6 @@ function HELLO_emailUserTopics($online=true, $test_mode=false, $options=array())
 	
 	$retval = '';
 	
-	$retval = '';
-	
 	if ($successes >= 0) {
         if ($test_mode) {
             $retval .= "<br><br><strong style='color:red;'>[MODE TEST] " . $successes . " e-mail(s) traitÃ©(s). Debug: $nrows utilisateurs trouvÃ©s, le dernier avait $nsrows articles, $failures erreurs.</strong><br><br>";
@@ -1646,14 +1644,35 @@ function HELLO_emailUserTopics($online=true, $test_mode=false, $options=array())
 	}
 	
 	if (!$test_mode) {
-	    //Update number of hello to send
-        DB_query( "UPDATE {$_TABLES['hello']} SET quantity = '$successes' WHERE hello_id = '$new_hello_id'" );
-	
-	    if ($online) {
-	        echo COM_refresh($_CONF['site_admin_url'] . '/plugins/hello/read_email.php?msg=digest_queued');
-	        exit;
+        DB_query(
+            "UPDATE {$_TABLES['hello']} SET quantity = '$successes' "
+            . "WHERE hello_id = '$new_hello_id'"
+        );
+
+        if ($successes > 0) {
+            $sentAt = date('Y-m-d H:i:s');
+            $safeSentAt = DB_escapeString($sentAt);
+
+            DB_query(
+                "REPLACE INTO {$_TABLES['vars']} (name, value) "
+                . "VALUES ('hello_last_digest_sent', '$safeSentAt')"
+            );
+
+            DB_query(
+                "REPLACE INTO {$_TABLES['vars']} (name, value) "
+                . "VALUES ('lastemailedstories', '$safeSentAt')"
+            );
+        }
+
+        if ($online) {
+            echo COM_refresh(
+                $_CONF['site_admin_url'] . '/plugins/hello/read_email.php?msg=digest_queued'
+            );
+            exit;
         }
     }
+
+    return $retval;
 }
 
 /**
