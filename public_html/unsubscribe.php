@@ -2,7 +2,7 @@
 
 /* Reminder: always indent with 4 spaces (no tabs). */
 // +---------------------------------------------------------------------------+
-// | hello Plugin 2.2.1                                                        |
+// | hello Plugin 2.3.0                                                        |
 // +---------------------------------------------------------------------------+
 // | unsubscribe.php
 // |                                                                           |
@@ -44,6 +44,7 @@ $uid = isset($_GET['u']) ? (int) $_GET['u'] : 0;
 $hash = isset($_GET['h']) ? $_GET['h'] : '';
 $hello_id = isset($_GET['hid']) ? (int) $_GET['hid'] : 0;
 $test_mode = isset($_GET['test']) && (int) $_GET['test'] === 1;
+$scope = (isset($_GET['scope']) && $_GET['scope'] === 'digest') ? 'digest' : 'campaign';
 
 $action = isset($_GET['action']) ? $_GET['action'] : 'unsubscribe';
 
@@ -54,11 +55,7 @@ if ($uid > 1 && !empty($hash)) {
     if ($email && MD5($email . "fFersh66") === $hash) {
         if ($action === 'resubscribe') {
             if (!$test_mode && $uid != 2) {
-                if (isset($_TABLES['user_attributes'])) {
-                    DB_query("UPDATE {$_TABLES['user_attributes']} SET emailfromadmin = 1 WHERE uid = $uid");
-                } else {
-                    DB_query("UPDATE {$_TABLES['userprefs']} SET emailfromadmin = 1 WHERE uid = $uid");
-                }
+                HELLO_setSubscription($uid, $scope, true, 'email_link', $hello_id, 'resubscribe');
             }
 
             $content = COM_startBlock($LANG_HELLO01['resub_title']);
@@ -83,7 +80,8 @@ if ($uid > 1 && !empty($hash)) {
         // security scanners cannot unsubscribe a user merely by following it.
         if (!$is_post) {
             $post_url = $_CONF['site_url'] . '/hello/unsubscribe.php?h='
-                . rawurlencode($hash) . '&amp;u=' . $uid . '&amp;hid=' . $hello_id;
+                . rawurlencode($hash) . '&amp;u=' . $uid . '&amp;hid=' . $hello_id
+                . '&amp;scope=' . $scope;
             if ($test_mode) {
                 $post_url .= '&amp;test=1';
             }
@@ -110,11 +108,10 @@ if ($uid > 1 && !empty($hash)) {
         }
 
         if (!$test_mode && $uid != 2) {
-            if (isset($_TABLES['user_attributes'])) {
-                DB_query("UPDATE {$_TABLES['user_attributes']} SET emailfromadmin = 0 WHERE uid = $uid");
-            } else {
-                DB_query("UPDATE {$_TABLES['userprefs']} SET emailfromadmin = 0 WHERE uid = $uid");
-            }
+            $source = (isset($_POST['List-Unsubscribe']) && $_POST['List-Unsubscribe'] === 'One-Click')
+                ? 'one_click'
+                : 'email_link';
+            HELLO_setSubscription($uid, $scope, false, $source, $hello_id, 'unsubscribe');
 
             if ($hello_id > 0) {
                 DB_query("INSERT INTO {$_TABLES['hello_stats']} (hello_id, uid, unsubscribed) "
@@ -142,7 +139,7 @@ if ($uid > 1 && !empty($hash)) {
 
         $resubscribe_url = $_CONF['site_url'] . '/hello/unsubscribe.php?h='
             . rawurlencode($hash) . '&amp;u=' . $uid . '&amp;hid=' . $hello_id
-            . '&amp;action=resubscribe';
+            . '&amp;scope=' . $scope . '&amp;action=resubscribe';
         if ($test_mode) {
             $resubscribe_url .= '&amp;test=1';
         }
