@@ -8,7 +8,7 @@
 
 Version 2.2.1 focuses on deliverability, safer tracking, administrator testing, queue control and security while preserving compatibility with Geeklog 2.1.1 through 2.2.2.
 
-> **Development note for the `hello-2.3.0` branch:** the inherited 2.2.1 code still contains a scheduled-task path that can prepare and send a story digest automatically. This is legacy behavior and is **not** the 2.3.0 target. Hello 2.3.0 will default to administrator review/approval before a live digest is queued or sent. Any future automatic-send mode must be a dedicated option, explicitly enabled and disabled by default.
+> **Development note for the `hello-2.3.0` branch:** the inherited automatic Story-digest scheduled task has now been neutralized. A live digest requires administrator review and an explicit queue action. Any future automatic-send mode must be a dedicated option, explicitly enabled and disabled by default.
 
 ## Key features
 
