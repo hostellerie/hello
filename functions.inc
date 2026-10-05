@@ -1186,13 +1186,12 @@ function HELLO_emailUserTopics($online=true, $test_mode=false, $options=array())
         }
 
         $etids_select = $has_etids ? ", etids" : ", '' AS etids";
-        $etids_where  = $has_etids ? " AND (etids <> '-' OR etids IS NULL)" : "";
 
         $usersql = "SELECT DISTINCT {$_TABLES['users']}.uid AS uuid, username, fullname, email{$etids_select} "
             . "FROM {$_TABLES['users']}, {$prefs_table} "
             . "WHERE {$_TABLES['users']}.uid > 1 AND {$_TABLES['users']}.status = 3 AND {$_TABLES['users']}.email <> '' "
             . "AND {$prefs_table}.uid = {$_TABLES['users']}.uid "
-            . "AND emailfromadmin = 1{$etids_where} "
+            . "AND emailfromadmin = 1 "
             . "AND NOT EXISTS (SELECT 1 FROM {$_TABLES['hello_subscriptions']} hs "
             . "WHERE hs.uid = {$_TABLES['users']}.uid AND hs.scope = 'digest' AND hs.subscribed = 0) "
             . "ORDER BY {$_TABLES['users']}.uid";
@@ -1245,7 +1244,8 @@ function HELLO_emailUserTopics($online=true, $test_mode=false, $options=array())
 	//Qty will be fixe later
 	$quantity = 0;
 
-	$content_summary = sprintf($LANG_HELLO01['num_stories_digest'], $count)
+	$selected_count = !empty($selected_items) ? count($selected_items) : $count;
+    $content_summary = sprintf($LANG_HELLO01['num_items_digest'], $selected_count)
         . ' | since: ' . $lastrun;
     if ($intro_text !== '') {
         $content_summary .= ' | intro: ' . $intro_text;
@@ -1275,55 +1275,73 @@ function HELLO_emailUserTopics($online=true, $test_mode=false, $options=array())
 			continue;
 		}
  
-        $storysql = array();
-        $storysql['mysql'] = "SELECT DISTINCT sid,uid,date AS day,title,introtext,bodytext,postmode";
- 
-        $commonsql = " FROM {$_TABLES['stories']} s, {$_TABLES['topic_assignments']} ta
-            WHERE draft_flag = 0 AND date <= NOW() AND date >= '$safe_lastrun'
-            AND ta.type = 'article' AND ta.id = sid";
-        if ($selected_filter !== '') {
-            $commonsql .= str_replace('sid IN', 's.sid IN', $selected_filter);
+        $stories = false;
+        $nsrows = 0;
+
+        // Resolve non-Story items independently for this recipient so the
+        // owning plugin remains authoritative for permissions.
+        $extra_items = array();
+        if (!empty($selected_items)) {
+            foreach ($selected_items as $selected_key) {
+                if (strpos($selected_key, 'stories:') === 0) {
+                    continue;
+                }
+                list($selected_source, $selected_id) = explode(':', $selected_key, 2);
+                $candidates = HELLO_getPluginDigestCandidates(
+                    $selected_source,
+                    $lastrun,
+                    (int) $U['uuid']
+                );
+                foreach ($candidates as $candidate) {
+                    if ((string) $candidate['id'] === (string) $selected_id) {
+                        $extra_items[] = $candidate;
+                        break;
+                    }
+                }
+            }
         }
- 
-        $topicsql = "SELECT tid FROM {$_TABLES['topics']}"
-                  . COM_getPermSQL( 'WHERE', $U['uuid'] );
-        $tresult = DB_query( $topicsql );
-        $trows = DB_numRows( $tresult );
- 
-        if( $trows == 0 )
-        {
-            // this user doesn't seem to have access to any topics ...
-            continue;
+
+        // Story topic preferences apply only to Stories. They must never
+        // suppress Static Pages or other generic digest sources.
+        $story_opt_out = isset($U['etids']) && trim($U['etids']) === '-';
+        if (in_array('stories', $sources, true) && !$story_opt_out) {
+            $storysql = array();
+            $storysql['mysql'] = "SELECT DISTINCT sid,uid,date AS day,title,introtext,bodytext,postmode";
+
+            $commonsql = " FROM {$_TABLES['stories']} s, {$_TABLES['topic_assignments']} ta
+                WHERE draft_flag = 0 AND date <= NOW() AND date >= '$safe_lastrun'
+                AND ta.type = 'article' AND ta.id = sid";
+            if ($selected_filter !== '') {
+                $commonsql .= str_replace('sid IN', 's.sid IN', $selected_filter);
+            }
+
+            $topicsql = "SELECT tid FROM {$_TABLES['topics']}"
+                      . COM_getPermSQL('WHERE', $U['uuid']);
+            $tresult = DB_query($topicsql);
+            $trows = DB_numRows($tresult);
+
+            $TIDS = array();
+            for ($i = 1; $i <= $trows; $i++) {
+                $T = DB_fetchArray($tresult);
+                $TIDS[] = $T['tid'];
+            }
+
+            if (!empty($U['etids'])) {
+                $ETIDS = explode(' ', $U['etids']);
+                $TIDS = array_intersect($TIDS, $ETIDS);
+            }
+
+            if (!empty($TIDS)) {
+                $commonsql .= " AND (ta.tid IN ('" . implode("','", $TIDS) . "'))";
+                $commonsql .= COM_getPermSQL('AND', $U['uuid'], 2, 's');
+                $commonsql .= ' ORDER BY date DESC';
+                $storysql['mysql'] .= $commonsql;
+                $stories = DB_query($storysql);
+                $nsrows = DB_numRows($stories);
+            }
         }
- 
-        $TIDS = array();
-        for( $i = 1; $i <= $trows; $i++ )
-        {
-            $T = DB_fetchArray( $tresult );
-            $TIDS[] = $T['tid'];
-        }
- 
-        if( !empty( $U['etids'] ))
-        {
-            $ETIDS = explode( ' ', $U['etids'] );
-            $TIDS = array_intersect( $TIDS, $ETIDS );
-        }
- 
-        if( sizeof( $TIDS ) > 0)
-        {// We have list of Daily Digest topic ids that user has access too and that the user wants a report on
-             $commonsql .= " AND (ta.tid IN ('" . implode( "','", $TIDS ) . "'))";
-        }
- 
-        $commonsql .= COM_getPermSQL( 'AND', $U['uuid'],2,'s' );
-        $commonsql .= ' ORDER BY date DESC';
- 
-        $storysql['mysql'] .= $commonsql;
- 
-        $stories = DB_query( $storysql );
-        $nsrows = DB_numRows( $stories );
- 
-        if( $nsrows == 0 )
-        {
+
+        if ($nsrows === 0 && empty($extra_items)) {
             continue;
         }
         
@@ -1418,23 +1436,6 @@ function HELLO_emailUserTopics($online=true, $test_mode=false, $options=array())
             $mailtext .= '</div>';
         }
         
-        $extra_items = array();
-        if (!empty($selected_items)) {
-            foreach ($selected_items as $selected_key) {
-                if (strpos($selected_key, 'stories:') === 0) {
-                    continue;
-                }
-                list($selected_source, $selected_id) = explode(':', $selected_key, 2);
-                $candidates = HELLO_getPluginDigestCandidates($selected_source, $lastrun, (int) $U['uuid']);
-                foreach ($candidates as $candidate) {
-                    if ((string) $candidate['id'] === (string) $selected_id) {
-                        $extra_items[] = $candidate;
-                        break;
-                    }
-                }
-            }
-        }
-
         foreach ($extra_items as $item) {
             $mailtext .= '<div style="border-bottom:1px solid #eeeeee; padding:20px 0;">';
             $mailtext .= '<div style="font-size:11px; color:#7f8c8d; text-transform:uppercase;">'
