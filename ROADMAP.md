@@ -782,6 +782,24 @@ Requirements:
 
 ## 25. Proposed 2.3.0 implementation order
 
+### Implemented foundation (current branch)
+
+The current `hello-2.3.0` branch now includes:
+
+- automatic live digest sending disabled by default;
+- scoped `campaign` / `digest` subscription state;
+- append-only subscription event history and administrator viewer;
+- POST + CSRF for administrator subscription changes;
+- structural campaign kind (`campaign` / `digest`);
+- Story-only editorial digest builder with editable content-since date, subject and introduction;
+- individual Story selection;
+- preview, administrator test and explicit queue actions;
+- digest boundary advanced only after at least one real recipient is queued.
+
+The next digest step is to extract the Story implementation behind the normalized item/source boundary before adding Static Pages and external content plugins.
+
+
+
 ### P0 — Audit, consent and send safety
 
 1. Document current campaign/digest/queue flows.
