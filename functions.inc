@@ -1013,6 +1013,113 @@ function HELLO_getStoryDigestCandidates($since, $selected_sids = array())
     return $items;
 }
 
+/**
+ * Return normalized candidates from a plugin exposing the shared Item Info contract.
+ *
+ * Collection filtering is performed locally when the provider does not yet
+ * implement options such as since/limit/order.
+ */
+function HELLO_getPluginDigestCandidates($plugin, $since, $uid = 0)
+{
+    global $_PLUGINS;
+
+    $plugin = strtolower(trim((string) $plugin));
+    if ($plugin === '' || !in_array($plugin, $_PLUGINS, true)) {
+        return array();
+    }
+
+    $dt = DateTime::createFromFormat('Y-m-d H:i:s', $since);
+    if (!$dt || $dt->format('Y-m-d H:i:s') !== $since) {
+        return array();
+    }
+    $since_ts = $dt->getTimestamp();
+
+    $what = 'id,title,url,excerpt,date-created,date-modified';
+    $items = PLG_getItemInfo($plugin, '*', $what, (int) $uid, array(
+        'since' => $since,
+        'order' => 'date-desc',
+    ));
+
+    if (!is_array($items)) {
+        return array();
+    }
+
+    $retval = array();
+    foreach ($items as $item) {
+        if (!is_array($item)) {
+            continue;
+        }
+
+        $date_ts = 0;
+        if (!empty($item['date-modified'])) {
+            $date_ts = is_numeric($item['date-modified'])
+                ? (int) $item['date-modified']
+                : (int) strtotime($item['date-modified']);
+        }
+        if ($date_ts <= 0 && !empty($item['date-created'])) {
+            $date_ts = is_numeric($item['date-created'])
+                ? (int) $item['date-created']
+                : (int) strtotime($item['date-created']);
+        }
+        if ($date_ts > 0 && $date_ts < $since_ts) {
+            continue;
+        }
+
+        $normalized = array(
+            'source' => $plugin,
+            'id' => isset($item['id']) ? (string) $item['id'] : '',
+            'type' => $plugin,
+            'title' => isset($item['title']) ? (string) $item['title'] : '',
+            'url' => isset($item['url']) ? (string) $item['url'] : '',
+            'date' => $date_ts > 0 ? date('Y-m-d H:i:s', $date_ts) : '',
+            'excerpt' => isset($item['excerpt']) ? (string) $item['excerpt'] : '',
+            'image' => '',
+            'source_label' => ucfirst($plugin),
+        );
+
+        if ($plugin === 'staticpages') {
+            $normalized['type'] = 'staticpage';
+            $normalized['source_label'] = 'Static Pages';
+        }
+
+        if ($normalized['id'] !== '' && $normalized['title'] !== '' && $normalized['url'] !== '') {
+            $retval[] = $normalized;
+        }
+    }
+
+    usort($retval, function ($a, $b) {
+        return strcmp($b['date'], $a['date']);
+    });
+
+    return $retval;
+}
+
+/**
+ * Return candidates for the currently supported digest sources.
+ */
+function HELLO_getDigestCandidates($sources, $since, $uid = 0)
+{
+    if (!is_array($sources) || empty($sources)) {
+        $sources = array('stories');
+    }
+
+    $items = array();
+
+    if (in_array('stories', $sources, true)) {
+        $items = array_merge($items, HELLO_getStoryDigestCandidates($since));
+    }
+
+    if (in_array('staticpages', $sources, true)) {
+        $items = array_merge($items, HELLO_getPluginDigestCandidates('staticpages', $since, $uid));
+    }
+
+    usort($items, function ($a, $b) {
+        return strcmp($b['date'], $a['date']);
+    });
+
+    return $items;
+}
+
 function HELLO_emailUserTopics($online=true, $test_mode=false, $options=array())
 {
     global $_CONF, $_TABLES, $LANG04, $LANG08, $LANG24, $LANG_HELLO01, $_USER;
@@ -1029,6 +1136,21 @@ function HELLO_emailUserTopics($online=true, $test_mode=false, $options=array())
 
     $intro_text = isset($options['intro']) ? trim($options['intro']) : '';
     $selected_sids = array();
+    $selected_items = array();
+    $sources = isset($options['sources']) && is_array($options['sources'])
+        ? array_values(array_unique($options['sources']))
+        : array('stories');
+
+    if (isset($options['selected_items']) && is_array($options['selected_items'])) {
+        foreach ($options['selected_items'] as $key) {
+            $key = trim((string) $key);
+            if (strpos($key, ':') !== false) {
+                $selected_items[] = $key;
+            }
+        }
+        $selected_items = array_values(array_unique($selected_items));
+    }
+
     if (isset($options['selected_sids']) && is_array($options['selected_sids'])) {
         foreach ($options['selected_sids'] as $sid) {
             $sid = trim((string) $sid);
@@ -1093,6 +1215,15 @@ function HELLO_emailUserTopics($online=true, $test_mode=false, $options=array())
 
     $safe_lastrun = DB_escapeString($lastrun);
     $selected_filter = '';
+    if (!empty($selected_items)) {
+        foreach ($selected_items as $selected_key) {
+            if (strpos($selected_key, 'stories:') === 0) {
+                $selected_sids[] = substr($selected_key, 8);
+            }
+        }
+        $selected_sids = array_values(array_unique($selected_sids));
+    }
+
     if (!empty($selected_sids)) {
         $safe_sids = array();
         foreach ($selected_sids as $sid) {
@@ -1287,6 +1418,47 @@ function HELLO_emailUserTopics($online=true, $test_mode=false, $options=array())
             $mailtext .= '</div>';
         }
         
+        $extra_items = array();
+        if (!empty($selected_items)) {
+            foreach ($selected_items as $selected_key) {
+                if (strpos($selected_key, 'stories:') === 0) {
+                    continue;
+                }
+                list($selected_source, $selected_id) = explode(':', $selected_key, 2);
+                $candidates = HELLO_getPluginDigestCandidates($selected_source, $lastrun, (int) $U['uuid']);
+                foreach ($candidates as $candidate) {
+                    if ((string) $candidate['id'] === (string) $selected_id) {
+                        $extra_items[] = $candidate;
+                        break;
+                    }
+                }
+            }
+        }
+
+        foreach ($extra_items as $item) {
+            $mailtext .= '<div style="border-bottom:1px solid #eeeeee; padding:20px 0;">';
+            $mailtext .= '<div style="font-size:11px; color:#7f8c8d; text-transform:uppercase;">'
+                . htmlspecialchars($item['source_label'], ENT_QUOTES, 'UTF-8') . '</div>';
+            $mailtext .= '<h2 style="margin:5px 0 8px 0; font-size:20px;">'
+                . htmlspecialchars($item['title'], ENT_QUOTES, 'UTF-8') . '</h2>';
+            if ($item['date'] !== '') {
+                $mailtext .= '<p style="margin:0 0 12px 0; font-size:12px; color:#7f8c8d;">'
+                    . htmlspecialchars($item['date'], ENT_QUOTES, 'UTF-8') . '</p>';
+            }
+            if ($item['excerpt'] !== '') {
+                $excerpt = trim(strip_tags($item['excerpt']));
+                if (strlen($excerpt) > 450) {
+                    $excerpt = substr($excerpt, 0, 447) . '...';
+                }
+                $mailtext .= '<p style="font-size:14px; margin-bottom:15px;">'
+                    . nl2br(htmlspecialchars($excerpt, ENT_QUOTES, 'UTF-8')) . '</p>';
+            }
+            $mailtext .= '<div><a href="' . htmlspecialchars($item['url'], ENT_QUOTES, 'UTF-8')
+                . '" style="display:inline-block; padding:8px 15px; background-color:#2980b9; color:#ffffff; text-decoration:none; border-radius:4px; font-size:13px;">'
+                . htmlspecialchars($LANG_HELLO01['read_content'], ENT_QUOTES, 'UTF-8') . '</a></div>';
+            $mailtext .= '</div>';
+        }
+
         $mailtext .= '</div>'; // Close body padding div
  
         $mailto = addslashes($U['email']);
