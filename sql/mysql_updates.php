@@ -73,6 +73,7 @@ $_UPDATES = array(
         ) ENGINE=MyISAM"
     ),
     '2.2.1' => array(
+        "ALTER TABLE {$_TABLES['hello']} ADD COLUMN kind varchar(16) NOT NULL default 'campaign' AFTER status",
         "CREATE TABLE IF NOT EXISTS {$_TABLES['hello_subscriptions']} (
           uid mediumint(8) NOT NULL,
           scope varchar(16) NOT NULL default 'campaign',
