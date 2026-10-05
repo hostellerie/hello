@@ -911,11 +911,31 @@ function HELLO_emailSafeImages($html)
     }, $html);
 }
 
-function HELLO_emailUserTopics($online=true, $test_mode=false)
+function HELLO_emailUserTopics($online=true, $test_mode=false, $options=array())
 {
     global $_CONF, $_TABLES, $LANG04, $LANG08, $LANG24, $LANG_HELLO01, $_USER;
- 
-    $subject = addslashes(strip_tags( '[' . $_CONF['site_name'] . '] ' . $LANG08[30] . strftime( $_CONF['shortdate'], time() )));
+
+    if (!is_array($options)) {
+        $options = array();
+    }
+
+    $default_subject = '[' . $_CONF['site_name'] . '] ' . $LANG08[30] . strftime($_CONF['shortdate'], time());
+    $subject_text = isset($options['subject']) && trim($options['subject']) !== ''
+        ? trim(strip_tags($options['subject']))
+        : $default_subject;
+    $subject = addslashes($subject_text);
+
+    $intro_text = isset($options['intro']) ? trim($options['intro']) : '';
+    $selected_sids = array();
+    if (isset($options['selected_sids']) && is_array($options['selected_sids'])) {
+        foreach ($options['selected_sids'] as $sid) {
+            $sid = trim((string) $sid);
+            if ($sid !== '') {
+                $selected_sids[] = $sid;
+            }
+        }
+        $selected_sids = array_values(array_unique($selected_sids));
+    }
     
     if ($test_mode) {
         $subject = '[TEST] ' . $subject;
@@ -957,16 +977,39 @@ function HELLO_emailUserTopics($online=true, $test_mode=false)
     $users = DB_query( $usersql );
     $nrows = DB_numRows( $users );
  
-    $lastrun = DB_getItem( $_TABLES['vars'], 'value', "name = 'lastemailedstories'" );
-	
-	$sql = "SELECT sid FROM {$_TABLES['stories']} WHERE draft_flag = 0 AND date <= NOW() AND date >= '{$lastrun}'";
-    $result = DB_query ($sql);
-    $count = DB_numRows ($result);
-	
-	// Prevent multi sending
-    if (!$test_mode) {
-	    DB_query( "UPDATE {$_TABLES['vars']} SET value = NOW() WHERE name = 'lastemailedstories'" );
+    $lastrun = '';
+    if (isset($options['since']) && trim($options['since']) !== '') {
+        $candidate_since = trim($options['since']);
+        $dt = DateTime::createFromFormat('Y-m-d H:i:s', $candidate_since);
+        if ($dt && $dt->format('Y-m-d H:i:s') === $candidate_since) {
+            $lastrun = $candidate_since;
+        }
     }
+    if ($lastrun === '') {
+        $lastrun = DB_getItem($_TABLES['vars'], 'value', "name = 'hello_last_digest_sent'");
+    }
+    if ($lastrun === '') {
+        $lastrun = DB_getItem($_TABLES['vars'], 'value', "name = 'lastemailedstories'");
+    }
+    if ($lastrun === '') {
+        $lastrun = '1970-01-01 00:00:00';
+    }
+
+    $safe_lastrun = DB_escapeString($lastrun);
+    $selected_filter = '';
+    if (!empty($selected_sids)) {
+        $safe_sids = array();
+        foreach ($selected_sids as $sid) {
+            $safe_sids[] = "'" . DB_escapeString($sid) . "'";
+        }
+        $selected_filter = ' AND sid IN (' . implode(',', $safe_sids) . ')';
+    }
+
+    $sql = "SELECT sid FROM {$_TABLES['stories']} "
+        . "WHERE draft_flag = 0 AND date <= NOW() AND date >= '$safe_lastrun'"
+        . $selected_filter;
+    $result = DB_query($sql);
+    $count = DB_numRows($result);
 	
 	//record hello
 	$creation = date ('YmdHi', time ());
@@ -975,7 +1018,12 @@ function HELLO_emailUserTopics($online=true, $test_mode=false)
 	//Qty will be fixe later
 	$quantity = 0;
 
-	$content  = addslashes(sprintf ($LANG_HELLO01['num_stories_digest'] . ' > ' . $lastrun, $count));
+	$content_summary = sprintf($LANG_HELLO01['num_stories_digest'], $count)
+        . ' | since: ' . $lastrun;
+    if ($intro_text !== '') {
+        $content_summary .= ' | intro: ' . $intro_text;
+    }
+    $content = addslashes($content_summary);
 	
 	if (!$test_mode) {
 	    $sql_ajout_hello = "INSERT INTO {$_TABLES['hello']} (subject, creation, email_group, quantity, content, kind) VALUES ('$subject', '$creation', '$email_group', '$quantity','$content','digest')";
@@ -1004,8 +1052,11 @@ function HELLO_emailUserTopics($online=true, $test_mode=false)
         $storysql['mysql'] = "SELECT DISTINCT sid,uid,date AS day,title,introtext,bodytext,postmode";
  
         $commonsql = " FROM {$_TABLES['stories']} s, {$_TABLES['topic_assignments']} ta
-            WHERE draft_flag = 0 AND date <= NOW() AND date >= '{$lastrun}'
+            WHERE draft_flag = 0 AND date <= NOW() AND date >= '$safe_lastrun'
             AND ta.type = 'article' AND ta.id = sid";
+        if ($selected_filter !== '') {
+            $commonsql .= str_replace('sid IN', 's.sid IN', $selected_filter);
+        }
  
         $topicsql = "SELECT tid FROM {$_TABLES['topics']}"
                   . COM_getPermSQL( 'WHERE', $U['uuid'] );
@@ -1063,8 +1114,19 @@ function HELLO_emailUserTopics($online=true, $test_mode=false)
         // Body
         $mailtext .= '<div style="padding:30px; color:#333333; line-height:1.6;">';
         
-        // Use generic welcome text that fits the site language
-        $mailtext .= '<p style="font-size:15px; color:#555;">' . sprintf($LANG_HELLO01['digest_intro_email'], '<strong>' . HELLO_undoSpecialChars(stripslashes($display_name)) . '</strong>', '<strong>' . $_CONF['site_name'] . '</strong>') . '</p>';
+        // Personalized greeting followed by the administrator's editorial introduction.
+        $mailtext .= '<p style="font-size:15px; color:#555;">'
+            . sprintf(
+                $LANG_HELLO01['digest_intro_email'],
+                '<strong>' . HELLO_undoSpecialChars(stripslashes($display_name)) . '</strong>',
+                '<strong>' . $_CONF['site_name'] . '</strong>'
+            )
+            . '</p>';
+        if ($intro_text !== '') {
+            $mailtext .= '<div style="font-size:15px; color:#444; margin:0 0 22px 0;">'
+                . nl2br(htmlspecialchars($intro_text, ENT_QUOTES, 'UTF-8'))
+                . '</div>';
+        }
   
         //For each story
 		for( $y = 0; $y < $nsrows; $y++ )
