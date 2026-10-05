@@ -110,9 +110,17 @@ Queue-changing administration actions use POST requests protected by Geeklog CSR
 
 ### Editorial digest builder
 
-The 2.3.0 development branch now provides a Story-based editorial digest workflow. Administrators can choose the content start date, edit the subject and introduction, select individual stories, preview the selection, send an administrator test, and explicitly queue the real digest.
+The 2.3.0 development branch provides an editorial digest workflow. Administrators can choose the content start date, edit the subject and introduction, select individual content items, preview the selection, send an administrator test, and explicitly queue the real digest.
 
 The last-digest boundary advances only after at least one real recipient has been queued. Preview and test operations do not advance it.
+
+### Multi-source provider discovery
+
+Stories use Hello's native adapter. Static Pages are consumed through Geeklog's shared Item Info contract.
+
+Hello automatically discovers enabled providers that implement `plugin_getiteminfo_PLUGIN()`. Known candidates include Documents, Maps, Videos, Forum, Store and Tickets. They become available in the digest source selector once their owning plugin exposes the shared collection contract.
+
+Hello intentionally does not query external plugin tables directly.
 
 
 
