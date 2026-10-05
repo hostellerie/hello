@@ -5,7 +5,7 @@
 */
 /* Reminder: always indent with 4 spaces (no tabs). */
 // +---------------------------------------------------------------------------+
-// | hello Plugin 2.2.1                                                        |
+// | hello Plugin 2.3.0                                                        |
 // +---------------------------------------------------------------------------+
 // | email_group.php                                                           |
 // +---------------------------------------------------------------------------+
@@ -308,12 +308,12 @@ function send_messages($vars)
         if (isset($_TABLES['user_attributes'])) {
             $sql = "SELECT DISTINCT username,fullname,email,emailfromadmin,{$_TABLES['users']}.uid FROM {$_TABLES['users']},{$_TABLES['user_attributes']},{$_TABLES['group_assignments']} WHERE {$_TABLES['users']}.uid > 1";
             $sql .= " AND {$_TABLES['users']}.status = 3 AND ((email is not null) and (email != ''))";
-            $sql .= " AND {$_TABLES['users']}.uid = {$_TABLES['user_attributes']}.uid AND emailfromadmin = 1";
+            $sql .= " AND {$_TABLES['users']}.uid = {$_TABLES['user_attributes']}.uid AND emailfromadmin = 1 AND NOT EXISTS (SELECT 1 FROM {$_TABLES['hello_subscriptions']} hs WHERE hs.uid = {$_TABLES['users']}.uid AND hs.scope = 'campaign' AND hs.subscribed = 0)";
             $sql .= " AND ug_uid = {$_TABLES['users']}.uid AND ug_main_grp_id IN ({$groupList})";
         } else {
             $sql = "SELECT DISTINCT username,fullname,email,emailfromadmin,{$_TABLES['users']}.uid FROM {$_TABLES['users']},{$_TABLES['userprefs']},{$_TABLES['group_assignments']} WHERE {$_TABLES['users']}.uid > 1";
             $sql .= " AND {$_TABLES['users']}.status = 3 AND ((email is not null) and (email != ''))";
-            $sql .= " AND {$_TABLES['users']}.uid = {$_TABLES['userprefs']}.uid AND emailfromadmin = 1";
+            $sql .= " AND {$_TABLES['users']}.uid = {$_TABLES['userprefs']}.uid AND emailfromadmin = 1 AND NOT EXISTS (SELECT 1 FROM {$_TABLES['hello_subscriptions']} hs WHERE hs.uid = {$_TABLES['users']}.uid AND hs.scope = 'campaign' AND hs.subscribed = 0)";
             $sql .= " AND ug_uid = {$_TABLES['users']}.uid AND ug_main_grp_id IN ({$groupList})";
         }
 		$result = DB_query ($sql);
