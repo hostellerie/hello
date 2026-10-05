@@ -108,6 +108,14 @@ Queue-changing administration actions use POST requests protected by Geeklog CSR
 
 ## Digest delivery policy for 2.3.0
 
+### Editorial digest builder
+
+The 2.3.0 development branch now provides a Story-based editorial digest workflow. Administrators can choose the content start date, edit the subject and introduction, select individual stories, preview the selection, send an administrator test, and explicitly queue the real digest.
+
+The last-digest boundary advances only after at least one real recipient has been queued. Preview and test operations do not advance it.
+
+
+
 Hello 2.3.0 separates content detection, digest preparation and live delivery.
 
 The target default workflow is:
