@@ -5,7 +5,7 @@
 */
 /* Reminder: always indent with 4 spaces (no tabs). */
 // +---------------------------------------------------------------------------+
-// | hello Plugin 2.2.1                                                        |
+// | hello Plugin 2.3.0                                                        |
 // +---------------------------------------------------------------------------+
 // | install_defaults.php                                                      |
 // |                                                                           |
@@ -55,6 +55,7 @@ $_HE_DEFAULT['max_email'] = 10;
 $_HE_DEFAULT['hourly_limit'] = 150;
 $_HE_DEFAULT['track_clicks'] = 1;
 $_HE_DEFAULT['track_opens'] = 1;
+$_HE_DEFAULT['enable_auto_cron'] = 0;
 
 
 /**
