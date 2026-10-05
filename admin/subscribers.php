@@ -51,10 +51,10 @@ require_once $_CONF['path_system'] . 'lib-admin.php';
 $display = '';
 
 // Handle quick manual unsubscribe/subscribe actions
-$action = isset($_REQUEST['action']) ? $_REQUEST['action'] : '';
-$uid = isset($_REQUEST['uid']) ? (int)$_REQUEST['uid'] : 0;
-if ($action == 'toggle' && $uid > 1 && SEC_checkToken()) {
-    $new_state = (isset($_REQUEST['state']) && $_REQUEST['state'] == '1') ? 1 : 0;
+$action = isset($_POST['action']) ? $_POST['action'] : '';
+$uid = isset($_POST['uid']) ? (int) $_POST['uid'] : 0;
+if ($action === 'toggle' && $uid > 1 && SEC_checkToken()) {
+    $new_state = (isset($_POST['state']) && $_POST['state'] === '1') ? 1 : 0;
     if (HELLO_setSubscription($uid, 'campaign', $new_state, 'admin', 0, 'subscribers.php')) {
         $display .= COM_showMessageText($LANG_HELLO01['status_updated_success'], 'success');
     }
@@ -151,8 +151,14 @@ function HELLO_getListField_subscribers($fieldname, $fieldvalue, $A, $icon_arr) 
             $token = SEC_createToken();
             $new_state = ($A['emailfromadmin'] == 1) ? 0 : 1;
             $label = ($A['emailfromadmin'] == 1) ? $LANG_HELLO01['force_unsubscribe'] : $LANG_HELLO01['resubscribe'];
-            $url = $_CONF['site_admin_url'] . "/plugins/hello/subscribers.php?action=toggle&amp;uid={$A['uid']}&amp;state=$new_state&amp;" . CSRF_TOKEN . "=$token";
-            $retval = '<a href="' . $url . '" style="font-size:11px;">[' . $label . ']</a>';
+            $retval = '<form method="post" action="' . $_CONF['site_admin_url']
+                . '/plugins/hello/subscribers.php" style="display:inline;">'
+                . '<input type="hidden" name="action" value="toggle" />'
+                . '<input type="hidden" name="uid" value="' . (int) $A['uid'] . '" />'
+                . '<input type="hidden" name="state" value="' . $new_state . '" />'
+                . '<input type="hidden" name="' . CSRF_TOKEN . '" value="' . $token . '" />'
+                . '<button type="submit" style="font-size:11px;">' . $label . '</button>'
+                . '</form>';
             break;
         default:
             $retval = stripslashes($fieldvalue);
