@@ -1072,6 +1072,7 @@ function HELLO_getAvailableDigestSources()
         'maps' => 'Maps',
         'videos' => 'Videos',
         'forum' => 'Forum',
+        'mediagallery' => 'MediaGallery',
     );
 
     foreach ($known as $plugin => $label) {
@@ -1535,6 +1536,12 @@ function HELLO_emailUserTopics($online=true, $test_mode=false, $options=array())
                 . htmlspecialchars($item['source_label'], ENT_QUOTES, 'UTF-8') . '</div>';
             $mailtext .= '<h2 style="margin:5px 0 8px 0; font-size:20px;">'
                 . htmlspecialchars($item['title'], ENT_QUOTES, 'UTF-8') . '</h2>';
+            if (!empty($item['image'])) {
+                $mailtext .= '<div style="margin:12px 0 14px 0;">'
+                    . '<img src="' . htmlspecialchars($item['image'], ENT_QUOTES, 'UTF-8')
+                    . '" alt="" style="display:block; max-width:100%; height:auto; border:0;" />'
+                    . '</div>';
+            }
             if ($item['date'] !== '') {
                 $mailtext .= '<p style="margin:0 0 12px 0; font-size:12px; color:#7f8c8d;">'
                     . htmlspecialchars($item['date'], ENT_QUOTES, 'UTF-8') . '</p>';
