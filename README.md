@@ -132,7 +132,9 @@ A future **automatic digest sending** option may be offered, but it must be:
 
 The 2.3.0 digest editor is planned to expose the content-since date, subject, introduction, source selection and individual content selection before approval.
 
-Digest unsubscribe will also be separated from the broader Geeklog `emailfromadmin` preference so that leaving the digest does not automatically opt a member out of unrelated Hello/admin mailings.
+Digest unsubscribe is separated from the broader Geeklog `emailfromadmin` preference so that leaving the digest does not automatically opt a member out of unrelated Hello/admin mailings.
+
+Hello 2.3.0 also introduces scoped subscription state plus an append-only subscription event history. Each subscription change can record the user, scope, action, source, related campaign/digest ID and timestamp, providing the basis for an administration manager that answers who unsubscribed, when and through which mechanism.
 
 ## Cron usage
 
