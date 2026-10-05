@@ -176,17 +176,7 @@ function HELLO_send_digest()
         }
     }
 
-    $safe_since = DB_escapeString($since);
-    $result = DB_query(
-        "SELECT sid, title, date FROM {$_TABLES['stories']} "
-        . "WHERE draft_flag = 0 AND date <= NOW() AND date >= '$safe_since' "
-        . "ORDER BY date DESC"
-    );
-
-    $stories = array();
-    while ($row = DB_fetchArray($result)) {
-        $stories[] = $row;
-    }
+    $stories = HELLO_getStoryDigestCandidates($since);
 
     $display .= '<p>' . $LANG_HELLO01['digest_intro'] . '</p>';
     $display .= '<p><strong>' . $LANG_HELLO01['digest_last_sent'] . '</strong> '
@@ -216,13 +206,14 @@ function HELLO_send_digest()
     } else {
         $display .= '<div style="max-width:900px; border:1px solid #ddd; padding:10px 14px;">';
         foreach ($stories as $story) {
-            $sid = (string) $story['sid'];
+            $sid = (string) $story['id'];
             $checked = empty($_POST) || in_array($sid, $selected, true) ? ' checked' : '';
             $display .= '<label style="display:block; padding:7px 0; border-bottom:1px solid #eee;">';
             $display .= '<input type="checkbox" name="digest_story[]" value="'
                 . htmlspecialchars($sid, ENT_QUOTES, 'UTF-8') . '"' . $checked . ' /> ';
             $display .= '<strong>' . htmlspecialchars($story['title'], ENT_QUOTES, 'UTF-8') . '</strong>';
-            $display .= ' <small>(' . htmlspecialchars($story['date'], ENT_QUOTES, 'UTF-8') . ')</small>';
+            $display .= ' <small>(' . htmlspecialchars($story['source_label'], ENT_QUOTES, 'UTF-8')
+                . ' — ' . htmlspecialchars($story['date'], ENT_QUOTES, 'UTF-8') . ')</small>';
             $display .= '</label>';
         }
         $display .= '</div>';
@@ -246,7 +237,7 @@ function HELLO_send_digest()
         }
         $display .= '<ul>';
         foreach ($stories as $story) {
-            if (in_array((string) $story['sid'], $selected, true)) {
+            if (in_array((string) $story['id'], $selected, true)) {
                 $display .= '<li>' . htmlspecialchars($story['title'], ENT_QUOTES, 'UTF-8') . '</li>';
             }
         }
