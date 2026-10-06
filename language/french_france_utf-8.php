@@ -182,6 +182,7 @@ $LANG_HELLO01 = array(
     'num_items_digest'         => 'Nombre de contenus sélectionnés : %d',
     'digest_refresh_button'    => 'Actualiser le contenu',
     'digest_refresh_hint'      => 'Modifiez Contenu depuis et/ou les sources sélectionnées, puis actualisez la liste des contenus.',
+    'digest_candidate_filter'  => 'La sélection affiche jusqu’à 5 candidats récents par source afin de conserver un digest équilibré.',
     'digest_preview_button'    => 'Prévisualiser',
     'digest_preview_title'     => 'Aperçu du digest',
     'digest_queue_button'      => 'Mettre le digest en file',
