@@ -252,9 +252,18 @@ function HELLO_send_digest()
         $display .= '<p style="color:#666;">' . $LANG_HELLO01['digest_refresh_hint'] . '</p>';
     } else {
         $display .= '<div style="max-width:900px; border:1px solid #ddd; padding:10px 14px;">';
+        $auto_selected = 0;
         foreach ($stories as $story) {
             $item_key = (string) $story['source'] . ':' . (string) $story['id'];
-            $checked = empty($_POST) || in_array($item_key, $selected, true) ? ' checked' : '';
+            $checked = '';
+            if (empty($_POST)) {
+                if ($auto_selected < $digest_item_limit) {
+                    $checked = ' checked';
+                    $auto_selected++;
+                }
+            } elseif (in_array($item_key, $selected, true)) {
+                $checked = ' checked';
+            }
             $display .= '<label style="display:block; padding:7px 0; border-bottom:1px solid #eee;">';
             $display .= '<input class="hello-digest-item" type="checkbox" name="digest_item[]" value="'
                 . htmlspecialchars($item_key, ENT_QUOTES, 'UTF-8') . '"' . $checked . ' /> ';
