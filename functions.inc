@@ -1116,10 +1116,15 @@ function HELLO_getPluginDigestCandidates($plugin, $since, $uid = 0)
 
     // Collection discovery intentionally requests metadata only. Detailed
     // editorial text is fetched for selected items after permission filtering.
+    //
+    // since / limit / order are advisory optimizations for providers. Older
+    // content.collection implementations may ignore one or all of them. Hello
+    // therefore enforces date filtering, ordering and the final limit locally.
+    $limit = 200;
     $what = 'id,title,url,date-created,date-modified,type,subtype,image';
     $items = PLG_getItemInfo($plugin, '*', $what, (int) $uid, array(
         'since' => $since,
-        'limit' => 200,
+        'limit' => $limit,
         'order' => 'modified-desc',
     ));
 
@@ -1179,6 +1184,10 @@ function HELLO_getPluginDigestCandidates($plugin, $since, $uid = 0)
     usort($retval, function ($a, $b) {
         return strcmp($b['date'], $a['date']);
     });
+
+    if (count($retval) > $limit) {
+        $retval = array_slice($retval, 0, $limit);
+    }
 
     return $retval;
 }
