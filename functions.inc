@@ -1154,6 +1154,8 @@ function HELLO_getPluginDigestCandidates($plugin, $since, $uid = 0)
     // advisory option and keep returning media only.
     if ($plugin === 'mediagallery') {
         $collection_options['subtypes'] = array('album', 'media');
+    } elseif ($plugin === 'documents') {
+        $collection_options['subtypes'] = array('category', 'document');
     }
 
     $items = PLG_getItemInfo(
@@ -1212,7 +1214,9 @@ function HELLO_getPluginDigestCandidates($plugin, $since, $uid = 0)
             $normalized['type'] = 'staticpage';
         }
 
-        if ($plugin === 'mediagallery' && $normalized['subtype'] !== '') {
+        if (in_array($plugin, array('mediagallery', 'documents'), true)
+            && $normalized['subtype'] !== ''
+        ) {
             $normalized['source_label'] .= ' — '
                 . ucfirst($normalized['subtype']);
         }
@@ -1285,10 +1289,11 @@ function HELLO_getDigestCandidates($sources, $since, $uid = 0)
         $sources = array('stories');
     }
 
-    // Keep the editorial picker concise and balanced. Each source contributes
-    // only its most recent candidates, preventing high-volume providers such
-    // as MediaGallery from flooding the selection list.
-    $per_source_limit = 5;
+    // Keep the editorial picker concise and balanced. Providers exposing
+    // several editorial subtypes (albums/media, categories/documents) may
+    // contribute up to five recent candidates per subtype so one high-volume
+    // subtype cannot hide the others.
+    $per_subtype_limit = 5;
     $items = array();
 
     if (in_array('stories', $sources, true)) {
@@ -1296,7 +1301,7 @@ function HELLO_getDigestCandidates($sources, $since, $uid = 0)
         usort($story_items, function ($a, $b) {
             return strcmp($b['date'], $a['date']);
         });
-        $items = array_merge($items, array_slice($story_items, 0, $per_source_limit));
+        $items = array_merge($items, array_slice($story_items, 0, $per_subtype_limit));
     }
 
     $available = HELLO_getAvailableDigestSources();
@@ -1310,10 +1315,23 @@ function HELLO_getDigestCandidates($sources, $since, $uid = 0)
             return strcmp($b['date'], $a['date']);
         });
 
-        $items = array_merge(
-            $items,
-            array_slice($source_items, 0, $per_source_limit)
-        );
+        $buckets = array();
+        foreach ($source_items as $source_item) {
+            $bucket = !empty($source_item['subtype'])
+                ? (string) $source_item['subtype']
+                : 'default';
+
+            if (!isset($buckets[$bucket])) {
+                $buckets[$bucket] = array();
+            }
+            if (count($buckets[$bucket]) < $per_subtype_limit) {
+                $buckets[$bucket][] = $source_item;
+            }
+        }
+
+        foreach ($buckets as $bucket_items) {
+            $items = array_merge($items, $bucket_items);
+        }
     }
 
     return $items;
