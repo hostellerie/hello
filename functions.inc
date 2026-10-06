@@ -1526,85 +1526,112 @@ function HELLO_emailUserTopics($online=true, $test_mode=false, $options=array())
                 . '</div>';
         }
   
-        //For each story
-		for( $y = 0; $y < $nsrows; $y++ )
-        {
-            // Loop through stories building the requested email message
-            $S = DB_fetchArray( $stories );
- 
-            $mailtext .= '<div style="border-bottom: 1px solid #eeeeee; padding: 20px 0;">';
-			
-            // Title
-            $story_url = $_CONF['site_url'] . '/article.php?story=' . rawurlencode($S['sid']);
+        // Merge Stories and external providers into one chronological digest.
+        // Providers without a usable date are kept after dated content.
+        $digest_items = array();
 
-            // Keep exactly one promotional link per article in digests.
-            // The title is plain text; only the final read-article CTA links.
-            $mailtext .= '<h2 style="margin: 0 0 5px 0; font-size: 20px;">'
-                . HELLO_undoSpecialChars(stripslashes($S['title'])) . '</h2>';
-			
-			// date & author
-			$storyauthor = '';
-            if( $_CONF['contributedbyline'] == 1 )
-            {
-                if( empty( $authors[$S['uid']] ))
-                {
-                    $storyauthor = COM_getDisplayName ($S['uid']);
-                    $authors[$S['uid']] = $storyauthor;
-                }
-                else
-                {
-                    $storyauthor = $authors[$S['uid']];
-                }
-            }
-            $auth_text = $storyauthor ? ' - ' . $storyauthor : '';
-            $mailtext .= '<p style="margin: 0 0 15px 0; font-size: 12px; color: #7f8c8d;">' . strftime( $_CONF['date'], strtotime( $S['day' ])) . $auth_text . '</p>';
-			
-            // Content
-			if( $_CONF['emailstorieslength'] > 0 )
-            {
-                if($S['postmode']==='wikitext'){
-                    $storytext = HELLO_undoSpecialChars( strip_tags( COM_renderWikiText ( stripslashes( $S['introtext'] ))));
-                } else {
-                    $storytext = stripslashes($S['introtext']);
-                }
- 
-                if( $_CONF['emailstorieslength'] > 1 )
-                {
-                    $storytext .= "<br /><br />" . stripslashes($S['bodytext']);
-                }
-                
-                // Keep relative images usable in email, but remove every
-                // hyperlink from the excerpt/body. Visible text and nested
-                // content remain unchanged.
-                $site_url = rtrim($_CONF['site_url'], '/');
-                $storytext = preg_replace('/src="\/([^\"]*)"/i', 'src="' . $site_url . '/$1"', $storytext);
-                $storytext = preg_replace('/<a\b[^>]*>/i', '', $storytext);
-                $storytext = preg_replace('/<\/a\s*>/i', '', $storytext);
-                $storytext = HELLO_emailSafeImages($storytext);
- 
-                $mailtext .= '<div style="font-size:14px; margin-bottom:15px;">' . $storytext . '</div>';
-            }
- 
-            $mailtext .= '<div><a href="' . $story_url . '" style="display:inline-block; padding:8px 15px; background-color:#2980b9; color:#ffffff; text-decoration:none; border-radius:4px; font-size:13px;">' . $LANG_HELLO01['read_article'] . stripslashes($S['title']) . '</a></div>';
-            $mailtext .= '</div>';
+        for ($y = 0; $y < $nsrows; $y++) {
+            $S = DB_fetchArray($stories);
+            $digest_items[] = array(
+                'kind' => 'story',
+                'date' => isset($S['day']) ? (string) $S['day'] : '',
+                'data' => $S,
+            );
         }
-        
+
         foreach ($extra_items as $item) {
+            $digest_items[] = array(
+                'kind' => 'external',
+                'date' => isset($item['date']) ? (string) $item['date'] : '',
+                'data' => $item,
+            );
+        }
+
+        usort($digest_items, function ($a, $b) {
+            $aDate = !empty($a['date']) ? strtotime($a['date']) : 0;
+            $bDate = !empty($b['date']) ? strtotime($b['date']) : 0;
+
+            if ($aDate === $bDate) {
+                return 0;
+            }
+
+            return ($aDate < $bDate) ? 1 : -1;
+        });
+
+        foreach ($digest_items as $digest_item) {
+            if ($digest_item['kind'] === 'story') {
+                $S = $digest_item['data'];
+
+                $mailtext .= '<div style="border-bottom:1px solid #eeeeee; padding:20px 0;">';
+
+                $story_url = $_CONF['site_url'] . '/article.php?story=' . rawurlencode($S['sid']);
+
+                $mailtext .= '<h2 style="margin:0 0 5px 0; font-size:20px;">'
+                    . HELLO_undoSpecialChars(stripslashes($S['title'])) . '</h2>';
+
+                $storyauthor = '';
+                if ($_CONF['contributedbyline'] == 1) {
+                    if (empty($authors[$S['uid']])) {
+                        $storyauthor = COM_getDisplayName($S['uid']);
+                        $authors[$S['uid']] = $storyauthor;
+                    } else {
+                        $storyauthor = $authors[$S['uid']];
+                    }
+                }
+
+                $auth_text = $storyauthor ? ' - ' . $storyauthor : '';
+                $mailtext .= '<p style="margin:0 0 15px 0; font-size:12px; color:#7f8c8d;">'
+                    . strftime($_CONF['date'], strtotime($S['day'])) . $auth_text . '</p>';
+
+                if ($_CONF['emailstorieslength'] > 0) {
+                    if ($S['postmode'] === 'wikitext') {
+                        $storytext = HELLO_undoSpecialChars(
+                            strip_tags(COM_renderWikiText(stripslashes($S['introtext'])))
+                        );
+                    } else {
+                        $storytext = stripslashes($S['introtext']);
+                    }
+
+                    if ($_CONF['emailstorieslength'] > 1) {
+                        $storytext .= "<br /><br />" . stripslashes($S['bodytext']);
+                    }
+
+                    $site_url = rtrim($_CONF['site_url'], '/');
+                    $storytext = preg_replace('/src="\/([^\"]*)"/i', 'src="' . $site_url . '/$1"', $storytext);
+                    $storytext = preg_replace('/<a\\b[^>]*>/i', '', $storytext);
+                    $storytext = preg_replace('/<\/a\\s*>/i', '', $storytext);
+                    $storytext = HELLO_emailSafeImages($storytext);
+
+                    $mailtext .= '<div style="font-size:14px; margin-bottom:15px;">' . $storytext . '</div>';
+                }
+
+                $mailtext .= '<div><a href="' . $story_url
+                    . '" style="display:inline-block; padding:8px 15px; background-color:#2980b9; color:#ffffff; text-decoration:none; border-radius:4px; font-size:13px;">'
+                    . $LANG_HELLO01['read_article'] . stripslashes($S['title']) . '</a></div>';
+                $mailtext .= '</div>';
+
+                continue;
+            }
+
+            $item = $digest_item['data'];
             $mailtext .= '<div style="border-bottom:1px solid #eeeeee; padding:20px 0;">';
             $mailtext .= '<div style="font-size:11px; color:#7f8c8d; text-transform:uppercase;">'
                 . htmlspecialchars($item['source_label'], ENT_QUOTES, 'UTF-8') . '</div>';
             $mailtext .= '<h2 style="margin:5px 0 8px 0; font-size:20px;">'
                 . htmlspecialchars($item['title'], ENT_QUOTES, 'UTF-8') . '</h2>';
+
             if (!empty($item['image'])) {
                 $mailtext .= '<div style="margin:12px 0 14px 0;">'
                     . '<img src="' . htmlspecialchars($item['image'], ENT_QUOTES, 'UTF-8')
                     . '" alt="" style="display:block; max-width:100%; height:auto; border:0;" />'
                     . '</div>';
             }
+
             if ($item['date'] !== '') {
                 $mailtext .= '<p style="margin:0 0 12px 0; font-size:12px; color:#7f8c8d;">'
                     . htmlspecialchars($item['date'], ENT_QUOTES, 'UTF-8') . '</p>';
             }
+
             if ($item['excerpt'] !== '') {
                 $excerpt = trim(strip_tags($item['excerpt']));
                 if (strlen($excerpt) > 450) {
@@ -1613,6 +1640,7 @@ function HELLO_emailUserTopics($online=true, $test_mode=false, $options=array())
                 $mailtext .= '<p style="font-size:14px; margin-bottom:15px;">'
                     . nl2br(htmlspecialchars($excerpt, ENT_QUOTES, 'UTF-8')) . '</p>';
             }
+
             $mailtext .= '<div><a href="' . htmlspecialchars($item['url'], ENT_QUOTES, 'UTF-8')
                 . '" style="display:inline-block; padding:8px 15px; background-color:#2980b9; color:#ffffff; text-decoration:none; border-radius:4px; font-size:13px;">'
                 . htmlspecialchars($LANG_HELLO01['read_content'], ENT_QUOTES, 'UTF-8') . '</a></div>';
