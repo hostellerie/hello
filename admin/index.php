@@ -206,7 +206,8 @@ function HELLO_send_digest()
         . ($last_sent !== '' ? htmlspecialchars($last_sent, ENT_QUOTES, 'UTF-8') : $LANG_HELLO01['never'])
         . '</p>';
 
-    $display .= '<form action="' . htmlspecialchars($PHP_SELF, ENT_QUOTES, 'UTF-8') . '" method="post">';
+    $digest_action = $_CONF['site_admin_url'] . '/plugins/hello/index.php';
+    $display .= '<form action="' . htmlspecialchars($digest_action, ENT_QUOTES, 'UTF-8') . '" method="post">';
     $display .= '<div style="display:grid; grid-template-columns:180px minmax(240px,1fr); gap:12px; max-width:900px; align-items:start;">';
 
     $display .= '<label for="digest_since"><strong>' . $LANG_HELLO01['digest_since_label'] . '</strong></label>';
