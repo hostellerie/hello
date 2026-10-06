@@ -1,0 +1,190 @@
+name: Build Hello installable archive
+
+on:
+  push:
+    branches:
+      - hello-2.3.0
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: hello-2.3.0-dist
+  cancel-in-progress: true
+
+jobs:
+  build-dist:
+    name: Build and commit installable ZIP
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Read plugin versions
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          PLUGIN_VERSION="$(php -r '
+          require "autoinstall.php";
+          $p = plugin_autoinstall_hello("hello");
+          echo $p["info"]["pi_version"];
+          ')"
+
+          GEEKLOG_MIN="$(php -r '
+          require "autoinstall.php";
+          $p = plugin_autoinstall_hello("hello");
+          echo $p["info"]["pi_gl_version"];
+          ')"
+
+          SOURCE_SHA="$(git rev-parse HEAD)"
+          ARCHIVE="hello_${PLUGIN_VERSION}_${GEEKLOG_MIN}.zip"
+
+          echo "PLUGIN_VERSION=${PLUGIN_VERSION}" >> "$GITHUB_ENV"
+          echo "GEEKLOG_MIN=${GEEKLOG_MIN}" >> "$GITHUB_ENV"
+          echo "SOURCE_SHA=${SOURCE_SHA}" >> "$GITHUB_ENV"
+          echo "ARCHIVE=${ARCHIVE}" >> "$GITHUB_ENV"
+
+      - name: Build Geeklog installable archive
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          rm -rf package
+          mkdir -p package/hello dist
+
+          find dist -maxdepth 1 -type f \( -name 'hello-*.zip' -o -name 'hello_*.zip' -o -name '*.zip.sha256' \) -delete
+
+          rsync -a ./ package/hello/ \
+            --exclude='.git/' \
+            --exclude='.github/' \
+            --exclude='.gitignore' \
+            --exclude='dist/' \
+            --exclude='package/' \
+            --exclude='.*' \
+            --exclude='*/.*'
+
+          cat > package/hello/BUILD_INFO.txt <<EOF
+          Hello ${PLUGIN_VERSION} installable archive
+          Geeklog minimum: ${GEEKLOG_MIN}
+          Source branch: hello-2.3.0
+          Source commit: ${SOURCE_SHA}
+          EOF
+
+          (
+            cd package
+            zip -qr "../dist/${ARCHIVE}" hello
+          )
+
+      - name: Verify Geeklog 2.2.2 archive rules
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          unzip -t "dist/${ARCHIVE}" >/dev/null
+
+          unzip -Z1 "dist/${ARCHIVE}" | grep -qx 'hello/functions.inc'
+          unzip -Z1 "dist/${ARCHIVE}" | grep -qx 'hello/autoinstall.php'
+          unzip -Z1 "dist/${ARCHIVE}" | grep -qx 'hello/install_defaults.php'
+          unzip -Z1 "dist/${ARCHIVE}" | grep -qx 'hello/BUILD_INFO.txt'
+          unzip -Z1 "dist/${ARCHIVE}" | grep -q '^hello/admin/'
+          unzip -Z1 "dist/${ARCHIVE}" | grep -q '^hello/public_html/'
+          unzip -Z1 "dist/${ARCHIVE}" | grep -q '^hello/templates/'
+          unzip -Z1 "dist/${ARCHIVE}" | grep -q '^hello/language/'
+          unzip -Z1 "dist/${ARCHIVE}" | grep -q '^hello/sql/'
+
+          python3 - <<'PY'
+          import os
+          import re
+          import sys
+          import zipfile
+
+          archive = os.path.join("dist", os.environ["ARCHIVE"])
+          invalid = []
+
+          with zipfile.ZipFile(archive) as zf:
+              names = zf.namelist()
+
+              if not names:
+                  invalid.append("<empty archive>")
+
+              for path in names:
+                  normalized = path.rstrip("/")
+                  if not normalized:
+                      continue
+
+                  parts = normalized.split("/")
+
+                  if parts[0] != "hello":
+                      invalid.append(path)
+                      continue
+
+                  for part in parts:
+                      if (
+                          not part
+                          or part.startswith(".")
+                          or part.endswith(".")
+                          or ".." in part
+                          or re.fullmatch(r"[0-9A-Za-z_.-]+", part) is None
+                      ):
+                          invalid.append(path)
+                          break
+
+          if invalid:
+              print("Invalid archive paths for Geeklog 2.2.2:")
+              for path in sorted(set(invalid)):
+                  print(" - " + path)
+              sys.exit(1)
+
+          print("Archive path validation passed: no file or directory starts with a dot.")
+          PY
+
+          sha256sum "dist/${ARCHIVE}" > "dist/${ARCHIVE}.sha256"
+
+      - name: Validate archive metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          unzip -p "dist/${ARCHIVE}" hello/autoinstall.php | grep -Fq "'pi_version'      => '${PLUGIN_VERSION}'"
+          unzip -p "dist/${ARCHIVE}" hello/autoinstall.php | grep -Fq "'pi_gl_version'   => '${GEEKLOG_MIN}'"
+
+      - name: Skip stale source
+        id: freshness
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git fetch origin hello-2.3.0
+          BRANCH_SHA="$(git rev-parse origin/hello-2.3.0)"
+
+          if [ "$BRANCH_SHA" != "$SOURCE_SHA" ]; then
+            echo "A newer branch commit exists; this archive will not be committed."
+            echo "commit_archive=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "commit_archive=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit archive to dist
+        if: steps.freshness.outputs.commit_archive == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+
+          git add -f dist/
+
+          if git diff --cached --quiet; then
+            echo 'No dist changes to commit.'
+            exit 0
+          fi
+
+          git commit -m "Build ${ARCHIVE} for ${SOURCE_SHA} [skip ci]"
+          git push origin HEAD:hello-2.3.0
