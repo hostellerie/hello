@@ -1143,11 +1143,26 @@ function HELLO_getPluginDigestCandidates($plugin, $since, $uid = 0)
     // therefore enforces date filtering, ordering and the final limit locally.
     $limit = 200;
     $what = 'id,title,url,date-created,date-modified,type,subtype,image';
-    $items = PLG_getItemInfo($plugin, '*', $what, (int) $uid, array(
+    $collection_options = array(
         'since' => $since,
         'limit' => $limit,
         'order' => 'modified-desc',
-    ));
+    );
+
+    // MediaGallery 2.0.0 can expose albums and media through the same generic
+    // content collection. Older MediaGallery versions safely ignore this
+    // advisory option and keep returning media only.
+    if ($plugin === 'mediagallery') {
+        $collection_options['subtypes'] = array('album', 'media');
+    }
+
+    $items = PLG_getItemInfo(
+        $plugin,
+        '*',
+        $what,
+        (int) $uid,
+        $collection_options
+    );
 
     if (!is_array($items)) {
         return array();
@@ -1195,6 +1210,11 @@ function HELLO_getPluginDigestCandidates($plugin, $since, $uid = 0)
         }
         if ($plugin === 'staticpages') {
             $normalized['type'] = 'staticpage';
+        }
+
+        if ($plugin === 'mediagallery' && $normalized['subtype'] !== '') {
+            $normalized['source_label'] .= ' — '
+                . ucfirst($normalized['subtype']);
         }
 
         if ($normalized['id'] !== '' && $normalized['title'] !== '' && $normalized['url'] !== '') {
