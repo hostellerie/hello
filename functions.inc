@@ -1693,7 +1693,15 @@ function HELLO_emailUserTopics($online=true, $test_mode=false, $options=array())
 	
 	if ($successes >= 0) {
         if ($test_mode) {
-            $retval .= "<br><br><strong style='color:red;'>[MODE TEST] " . $successes . " e-mail(s) traitÃ©(s). Debug: $nrows utilisateurs trouvÃ©s, le dernier avait $nsrows articles, $failures erreurs.</strong><br><br>";
+            $retval .= '<br><br><strong style="color:red;">'
+                . sprintf(
+                    $LANG_HELLO01['digest_test_summary'],
+                    $successes,
+                    $nrows,
+                    $nsrows,
+                    $failures
+                )
+                . '</strong><br><br>';
         } else {
             $retval .= $successes . ' ' . $LANG_HELLO01['email_schedule'];
         }
