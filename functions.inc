@@ -426,35 +426,35 @@ function HELLO_undoSpecialChars( $string )
     $string = str_replace( '&nbsp;',    ' ', $string );
     $string = str_replace( '&amp;',     '&', $string );
     $string = str_replace( '&Agrave;',  'A', $string );
-    $string = str_replace( '&agrave;',  'Ã ', $string );
+    $string = str_replace( '&agrave;',  'à', $string );
     $string = str_replace( '&Acirc;',   'A', $string );
-    $string = str_replace( '&acirc;',   'Ã¢', $string );
+    $string = str_replace( '&acirc;',   'â', $string );
     $string = str_replace( '&Ccedil;',  'C', $string );
-    $string = str_replace( '&ccedil;',  'Ã§', $string );
+    $string = str_replace( '&ccedil;',  'ç', $string );
     $string = str_replace( '&Egrave;',  'E', $string );
-    $string = str_replace( '&egrave;',  'Ã¨', $string );
+    $string = str_replace( '&egrave;',  'è', $string );
     $string = str_replace( '&Eacute;',  'E', $string );
-    $string = str_replace( '&eacute;',  'Ã©', $string );
+    $string = str_replace( '&eacute;',  'é', $string );
     $string = str_replace( '&Ecirc;',   'E', $string );
-    $string = str_replace( '&ecirc;',   'Ãª', $string );
+    $string = str_replace( '&ecirc;',   'ê', $string );
     $string = str_replace( '&Euml;',    'E', $string );
-    $string = str_replace( '&euml;',    'Ã«', $string );
+    $string = str_replace( '&euml;',    'ë', $string );
     $string = str_replace( '&Icirc;',   'I', $string );
-    $string = str_replace( '&icirc;',   'Ã®', $string );
+    $string = str_replace( '&icirc;',   'î', $string );
     $string = str_replace( '&Iuml;',    'I', $string );
-    $string = str_replace( '&iuml;',    'Ã¯', $string );
+    $string = str_replace( '&iuml;',    'ï', $string );
     $string = str_replace( '&Ocirc;',   'O', $string );
-    $string = str_replace( '&ocirc;',   'Ã´', $string );
+    $string = str_replace( '&ocirc;',   'ô', $string );
     $string = str_replace( '&OElig;',  'OE', $string );
     $string = str_replace( '&oelig;',  'oe', $string );
     $string = str_replace( '&Ugrave;',  'U', $string );
-    $string = str_replace( '&ugrave;',  'Ã¹', $string );
+    $string = str_replace( '&ugrave;',  'ù', $string );
     $string = str_replace( '&Ucirc;',   'U', $string );
-    $string = str_replace( '&ucirc;',   'Ã»', $string );
+    $string = str_replace( '&ucirc;',   'û', $string );
     $string = str_replace( '&Uuml;',    'U', $string );
-    $string = str_replace( '&uuml;',    'Ã¼', $string );
+    $string = str_replace( '&uuml;',    'ü', $string );
     $string = str_replace( '&#376;',    'Y', $string );
-    $string = str_replace( '&yuml;',    'Ã¿', $string );
+    $string = str_replace( '&yuml;',    'ÿ', $string );
     $string = str_replace( '&rsquo;',  '\'', $string );
  
     return( $string );
@@ -1707,7 +1707,7 @@ function HELLO_emailUserTopics($online=true, $test_mode=false, $options=array())
         }
 	} 
 	if ($failures > 0) {
-	    $retval .= 'Oups... There was ' . $failures . ' failure(s)';
+	    $retval .= sprintf($LANG_HELLO01['send_failures'], $failures);
 	}
 	
 	if (!$test_mode) {
