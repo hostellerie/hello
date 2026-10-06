@@ -195,7 +195,7 @@ $LANG_HELLO01 = array(
     'digest_invalid_since'     => 'La date de départ doit utiliser le format YYYY-MM-DD HH:MM:SS.',
     'digest_select_one'        => 'Sélectionnez au moins un article avant le test ou la mise en file.',
 'digest_sent'             => 'La notification a bien été expédiée. <a href="' . $_CONF['site_admin_url'] . '/plugins/hello/index.php">Retour à l\'interface d\'administration</a>.',
-    'digest_intro_email'        => 'Bonjour %s. Voici les derniers articles publiés sur le site %s.',
+    'digest_intro_email'        => 'Bonjour %s. Voici les derniers contenus publiés sur %s.',
     'digest_intro'            => 'Préparez ici un digest éditorial. Choisissez la date de départ, le sujet, une introduction et les articles à inclure. Aucun envoi réel n\'est effectué avant votre action explicite de mise en file.',
     'digest_last_sent'        => 'Dernière notification expédiée :',
     'never'                   => '(Jamais)',
