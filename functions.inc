@@ -1118,7 +1118,7 @@ function HELLO_getAvailableDigestSources()
  */
 function HELLO_getPluginDigestCandidates($plugin, $since, $uid = 0)
 {
-    global $_PLUGINS;
+    global $_PLUGINS, $LANG_HELLO01;
 
     $plugin = strtolower(trim((string) $plugin));
     if ($plugin === '' || !in_array($plugin, $_PLUGINS, true)) {
@@ -1217,8 +1217,11 @@ function HELLO_getPluginDigestCandidates($plugin, $since, $uid = 0)
         if (in_array($plugin, array('mediagallery', 'documents'), true)
             && $normalized['subtype'] !== ''
         ) {
-            $normalized['source_label'] .= ' — '
-                . ucfirst($normalized['subtype']);
+            $subtypeKey = 'digest_subtype_' . strtolower($normalized['subtype']);
+            $subtypeLabel = isset($LANG_HELLO01[$subtypeKey])
+                ? $LANG_HELLO01[$subtypeKey]
+                : ucfirst($normalized['subtype']);
+            $normalized['source_label'] .= ' — ' . $subtypeLabel;
         }
 
         if ($normalized['id'] !== '' && $normalized['title'] !== '' && $normalized['url'] !== '') {
