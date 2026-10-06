@@ -238,9 +238,15 @@ function HELLO_send_digest()
             . htmlspecialchars($label, ENT_QUOTES, 'UTF-8') . '</label>';
     }
 
+    $display .= '<p style="margin:16px 0 6px 0;">';
+    $display .= '<input type="submit" name="refreshdigest" value="'
+        . $LANG_HELLO01['digest_refresh_button'] . '" />';
+    $display .= '</p>';
+
     $display .= '<h4 style="margin-top:22px;">' . $LANG_HELLO01['digest_articles_label'] . '</h4>';
     if (empty($stories)) {
         $display .= '<p>' . $LANG_HELLO01['no_stories'] . '</p>';
+        $display .= '<p style="color:#666;">' . $LANG_HELLO01['digest_refresh_hint'] . '</p>';
     } else {
         $display .= '<div style="max-width:900px; border:1px solid #ddd; padding:10px 14px;">';
         foreach ($stories as $story) {
