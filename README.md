@@ -120,7 +120,9 @@ Stories use Hello's native adapter. Static Pages are consumed through Geeklog's 
 
 Hello automatically discovers enabled editorial providers that expose both `plugin_getiteminfo_PLUGIN()` and a confirmed content-collection capability. Static Pages remains a core compatibility exception because supported Geeklog versions already expose its collection contract without the newer capability declaration.
 
-Verified external providers are Documents, Maps, Videos, the updated Forum branches and MediaGallery 2.0.0. MediaGallery contributes permission-aware media items and normalized thumbnail images to the generic digest renderer. Store is intentionally deferred until its public-product contract is implemented. Tickets is intentionally excluded because it is private transactional user/administrator content rather than an editorial source.
+Collection options such as `since`, `limit` and `order` are treated as provider-side optimizations. Hello does not require a provider to implement them: it re-applies the date boundary, descending date order and final result limit after normalization. This keeps older content.collection implementations usable without version-specific coupling.
+
+Verified external providers are Documents, Maps, Videos, the updated Forum branches and MediaGallery. Newer provider versions can optimize collection calls directly; older compatible implementations may still participate when they expose a usable permission-aware collection. Store is intentionally deferred until its public-product contract is implemented. Tickets is intentionally excluded because it is private transactional user/administrator content rather than an editorial source.
 
 Hello intentionally does not query external plugin tables directly.
 
