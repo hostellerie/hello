@@ -242,6 +242,7 @@ function HELLO_send_digest()
     $display .= '</p>';
 
     $display .= '<h4 style="margin-top:22px;">' . $LANG_HELLO01['digest_articles_label'] . '</h4>';
+    $display .= '<p style="margin:0 0 6px 0; color:#666;">' . $LANG_HELLO01['digest_candidate_filter'] . '</p>';
     $display .= '<p style="margin:0 0 10px 0; color:#666;">'
         . sprintf($LANG_HELLO01['digest_limit_hint'], $digest_item_limit)
         . ' <strong><span id="digest-selected-count">0</span> / '
