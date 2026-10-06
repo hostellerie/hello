@@ -1265,10 +1265,18 @@ function HELLO_getDigestCandidates($sources, $since, $uid = 0)
         $sources = array('stories');
     }
 
+    // Keep the editorial picker concise and balanced. Each source contributes
+    // only its most recent candidates, preventing high-volume providers such
+    // as MediaGallery from flooding the selection list.
+    $per_source_limit = 5;
     $items = array();
 
     if (in_array('stories', $sources, true)) {
-        $items = array_merge($items, HELLO_getStoryDigestCandidates($since));
+        $story_items = HELLO_getStoryDigestCandidates($since);
+        usort($story_items, function ($a, $b) {
+            return strcmp($b['date'], $a['date']);
+        });
+        $items = array_merge($items, array_slice($story_items, 0, $per_source_limit));
     }
 
     $available = HELLO_getAvailableDigestSources();
@@ -1276,15 +1284,17 @@ function HELLO_getDigestCandidates($sources, $since, $uid = 0)
         if ($source === 'stories' || !isset($available[$source])) {
             continue;
         }
+
+        $source_items = HELLO_getPluginDigestCandidates($source, $since, $uid);
+        usort($source_items, function ($a, $b) {
+            return strcmp($b['date'], $a['date']);
+        });
+
         $items = array_merge(
             $items,
-            HELLO_getPluginDigestCandidates($source, $since, $uid)
+            array_slice($source_items, 0, $per_source_limit)
         );
     }
-
-    usort($items, function ($a, $b) {
-        return strcmp($b['date'], $a['date']);
-    });
 
     return $items;
 }
