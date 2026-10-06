@@ -1644,18 +1644,21 @@ function HELLO_emailUserTopics($online=true, $test_mode=false, $options=array())
         // Body
         $mailtext .= '<div style="padding:30px; color:#333333; line-height:1.6;">';
         
-        // Personalized greeting followed by the administrator's editorial introduction.
-        $mailtext .= '<p style="font-size:15px; color:#555;">'
-            . sprintf(
-                $LANG_HELLO01['digest_intro_email'],
-                '<strong>' . HELLO_undoSpecialChars(stripslashes($display_name)) . '</strong>',
-                '<strong>' . $_CONF['site_name'] . '</strong>'
-            )
-            . '</p>';
+        // The administrator's editorial introduction replaces the generic
+        // digest greeting. The neutral fallback is used only when no
+        // introduction was provided.
         if ($intro_text !== '') {
             $mailtext .= '<div style="font-size:15px; color:#444; margin:0 0 22px 0;">'
                 . nl2br(htmlspecialchars($intro_text, ENT_QUOTES, 'UTF-8'))
                 . '</div>';
+        } else {
+            $mailtext .= '<p style="font-size:15px; color:#555;">'
+                . sprintf(
+                    $LANG_HELLO01['digest_intro_email'],
+                    '<strong>' . HELLO_undoSpecialChars(stripslashes($display_name)) . '</strong>',
+                    '<strong>' . $_CONF['site_name'] . '</strong>'
+                )
+                . '</p>';
         }
   
         //For each story
