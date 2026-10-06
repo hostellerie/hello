@@ -206,8 +206,9 @@ function HELLO_send_digest()
         . ($last_sent !== '' ? htmlspecialchars($last_sent, ENT_QUOTES, 'UTF-8') : $LANG_HELLO01['never'])
         . '</p>';
 
-    $digest_action = $_CONF['site_admin_url'] . '/plugins/hello/index.php';
-    $display .= '<form action="' . htmlspecialchars($digest_action, ENT_QUOTES, 'UTF-8') . '" method="post">';
+    // Submit to the exact current administration URL. This avoids
+    // assumptions about Geeklog admin routing or rewritten plugin URLs.
+    $display .= '<form action="" method="post">';
     $display .= '<div style="display:grid; grid-template-columns:180px minmax(240px,1fr); gap:12px; max-width:900px; align-items:start;">';
 
     $display .= '<label for="digest_since"><strong>' . $LANG_HELLO01['digest_since_label'] . '</strong></label>';
