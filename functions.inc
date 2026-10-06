@@ -1322,7 +1322,7 @@ function HELLO_emailUserTopics($online=true, $test_mode=false, $options=array())
  
     // Get users who want stories emailed to them and are subscribed
     if ($test_mode) {
-        // En mode test, on n'envoie qu'Ã  l'utilisateur en cours
+        // In test mode, send only to the currently logged-in user
         $usersql = "SELECT DISTINCT uid AS uuid, username, fullname, email, '' AS etids FROM {$_TABLES['users']} WHERE uid = {$_USER['uid']}";
     } else {
         $prefs_table = isset($_TABLES['user_attributes']) ? $_TABLES['user_attributes'] : $_TABLES['userprefs'];
