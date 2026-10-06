@@ -75,16 +75,6 @@ function display_documentation() {
     $display .= '<h3>' . $LANG_HELLO01['doc_mdigest_title'] . '</h3>';
     $display .= $LANG_HELLO01['doc_mdigest_body'];
     
-    $display .= '<h3>' . $LANG_HELLO01['doc_ddigest_title'] . '</h3>';
-    $display .= $LANG_HELLO01['doc_ddigest_body'];
-    
-    // Add Cron Instructions
-    $cron_command = '*/2 * * * * /usr/bin/php ' . $_CONF['path'] . 'plugins/hello/cron.php ' . $_SERVER['HTTP_HOST'] . ' > /dev/null 2>&1';
-    
-    $display .= '<h3>' . $LANG_HELLO01['cron_title'] . '</h3>';
-    $display .= '<p>' . $LANG_HELLO01['cron_desc'] . '</p>';
-    $display .= '<pre style="background: #fff; padding: 10px; border: 1px solid #ccc; overflow-x: auto;">' . htmlspecialchars($cron_command) . '</pre>';
-    
     $display .= '</div>';
     $display .= '</details>';
     $display .= '</div>';
