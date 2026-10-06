@@ -85,6 +85,26 @@ function HELLO_count_hello () {
     return $retval;
 }
 
+function HELLO_queue_maintenance()
+{
+    global $_CONF, $LANG_HELLO01;
+
+    $cron_command = '*/2 * * * * /usr/bin/php '
+        . $_CONF['path'] . 'plugins/hello/cron.php '
+        . $_SERVER['HTTP_HOST'] . ' > /dev/null 2>&1';
+
+    $retval = '<hr style="margin:30px 0;">';
+    $retval .= '<h3>' . $LANG_HELLO01['doc_ddigest_title'] . '</h3>';
+    $retval .= $LANG_HELLO01['doc_ddigest_body'];
+    $retval .= '<h4>' . $LANG_HELLO01['cron_title'] . '</h4>';
+    $retval .= '<p>' . $LANG_HELLO01['cron_desc'] . '</p>';
+    $retval .= '<pre style="background:#fff; padding:10px; border:1px solid #ccc; overflow-x:auto;">'
+        . htmlspecialchars($cron_command, ENT_QUOTES, 'UTF-8')
+        . '</pre>';
+
+    return $retval;
+}
+
 // MAIN
 $action = isset($_POST['action']) ? $_POST['action'] : '';
 
@@ -98,6 +118,7 @@ if ($action === 'go') {
     }
 } else {
     $display .= HELLO_count_hello ();
+    $display .= HELLO_queue_maintenance();
 }
 
 $display .= COM_endBlock(COM_getBlockTemplate('_admin_block', 'footer'));
