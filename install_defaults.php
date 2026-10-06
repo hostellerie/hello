@@ -56,7 +56,7 @@ $_HE_DEFAULT['hourly_limit'] = 150;
 $_HE_DEFAULT['track_clicks'] = 1;
 $_HE_DEFAULT['track_opens'] = 1;
 $_HE_DEFAULT['enable_auto_cron'] = 0;
-$_HE_DEFAULT['enable_auto_cron'] = 0;
+$_HE_DEFAULT['digest_item_limit'] = 15;
 
 
 /**
@@ -88,6 +88,8 @@ function plugin_initconfig_hello()
                 'select', 0, 0, 0, 40, true, 'hello', 0);
         $c->add('enable_auto_cron', $_HE_DEFAULT['enable_auto_cron'],
                 'select', 0, 0, 0, 50, true, 'hello', 0);
+        $c->add('digest_item_limit', $_HE_DEFAULT['digest_item_limit'],
+                'text', 0, 0, NULL, 60, true, 'hello', 0);
     }
 
     return true;
