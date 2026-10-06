@@ -182,6 +182,7 @@ $LANG_HELLO01 = array(
     'num_items_digest'         => 'Selected content items: %d',
     'digest_refresh_button'    => 'Refresh candidates',
     'digest_refresh_hint'      => 'Change Content since and/or the selected sources, then refresh the candidate list.',
+    'digest_candidate_filter'  => 'The picker shows up to 5 of the most recent candidates per source to keep the digest balanced.',
     'digest_preview_button'    => 'Preview',
     'digest_preview_title'     => 'Digest preview',
     'digest_queue_button'      => 'Queue digest',
