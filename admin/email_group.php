@@ -321,7 +321,7 @@ function send_messages($vars)
 		$quantity = $nrows;
 	} else {
         $retval .= COM_startBlock ($LANG31[1], '', COM_getBlockTemplate ('_msg_block', 'header'));
-        $retval .= 'Error: No group selected.';
+        $retval .= $LANG_HELLO01['error_no_group_selected'];
         $retval .= COM_endBlock (COM_getBlockTemplate ('_msg_block', 'footer'));
         return $retval;
     }
