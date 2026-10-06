@@ -917,6 +917,27 @@ function HELLO_emailSafeImages($html)
  * Hello owns this state in 2.3.0. The core lastemailedstories value is kept
  * only as a compatibility fallback for upgraded installations.
  */
+/**
+ * Return the recommended maximum number of content items in one digest.
+ *
+ * Existing 2.3.0 installations may not yet have the configuration key, so
+ * the safe default remains 15 until a later upgrade persists the setting.
+ */
+function HELLO_getDigestItemLimit()
+{
+    global $_HE_CONF;
+
+    $limit = isset($_HE_CONF['digest_item_limit'])
+        ? (int) $_HE_CONF['digest_item_limit']
+        : 15;
+
+    if ($limit < 1) {
+        $limit = 15;
+    }
+
+    return $limit;
+}
+
 function HELLO_getDigestBoundary()
 {
     global $_TABLES;
@@ -1297,6 +1318,11 @@ function HELLO_emailUserTopics($online=true, $test_mode=false, $options=array())
             }
         }
         $selected_items = array_values(array_unique($selected_items));
+    }
+
+    $digest_item_limit = HELLO_getDigestItemLimit();
+    if (count($selected_items) > $digest_item_limit) {
+        return sprintf($LANG_HELLO01['digest_limit_exceeded'], $digest_item_limit);
     }
 
     if (isset($options['selected_sids']) && is_array($options['selected_sids'])) {
