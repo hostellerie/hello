@@ -221,6 +221,8 @@ limit
 order
 ```
 
+These collection options are advisory optimizations, not mandatory compatibility requirements. Providers may ignore one or all of them. Hello must enforce the requested date boundary, final ordering and result limit after normalization.
+
 Hello should not require every plugin to expose identical optional fields.
 
 ---
