@@ -30,17 +30,11 @@ jobs:
         run: |
           set -euo pipefail
 
-          PLUGIN_VERSION="$(php -r '
-          require "autoinstall.php";
-          $p = plugin_autoinstall_hello("hello");
-          echo $p["info"]["pi_version"];
-          ')"
+          PLUGIN_VERSION="$(sed -n "s/.*'pi_version'[[:space:]]*=>[[:space:]]*'\\([^']*\\)'.*/\\1/p" autoinstall.php | head -n 1)"
+          GEEKLOG_MIN="$(sed -n "s/.*'pi_gl_version'[[:space:]]*=>[[:space:]]*'\\([^']*\\)'.*/\\1/p" autoinstall.php | head -n 1)"
 
-          GEEKLOG_MIN="$(php -r '
-          require "autoinstall.php";
-          $p = plugin_autoinstall_hello("hello");
-          echo $p["info"]["pi_gl_version"];
-          ')"
+          test -n "$PLUGIN_VERSION"
+          test -n "$GEEKLOG_MIN"
 
           SOURCE_SHA="$(git rev-parse HEAD)"
           ARCHIVE="hello_${PLUGIN_VERSION}_${GEEKLOG_MIN}.zip"
