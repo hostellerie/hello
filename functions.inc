@@ -1247,40 +1247,89 @@ function HELLO_getPluginDigestCandidates($plugin, $since, $uid = 0)
  * after an item has been selected and the owning provider has approved access
  * for the target user.
  */
-function HELLO_getPluginDigestExcerpt($plugin, $id, $uid = 0)
+function HELLO_getStaticPageDigestDescription($id, $uid = 0)
+{
+    global $_TABLES;
+
+    $id = trim((string) $id);
+    $uid = (int) $uid;
+    if ($id === '' || empty($_TABLES['staticpage'])) {
+        return '';
+    }
+
+    $safeId = DB_escapeString($id);
+    $sql = "SELECT meta_description FROM {$_TABLES['staticpage']} "
+        . "WHERE template_flag=0 AND draft_flag=0 "
+        . "AND sp_id='" . $safeId . "'"
+        . COM_getPermSQL('AND', $uid)
+        . " LIMIT 1";
+
+    $row = DB_fetchArray(DB_query($sql));
+    if (!is_array($row) || !isset($row['meta_description'])) {
+        return '';
+    }
+
+    return trim(stripslashes((string) $row['meta_description']));
+}
+
+/**
+ * Return detailed editorial fields for one selected provider item.
+ *
+ * Collection discovery stays metadata-oriented. Detailed description/image
+ * values are resolved only after selection and for the target recipient.
+ */
+function HELLO_getPluginDigestDetail($plugin, $id, $uid = 0)
 {
     global $_PLUGINS;
 
     $plugin = strtolower(trim((string) $plugin));
     $id = trim((string) $id);
 
+    $detail = array(
+        'excerpt' => '',
+        'image' => '',
+    );
+
+    if ($plugin === 'staticpages') {
+        $detail['excerpt'] = HELLO_getStaticPageDigestDescription($id, $uid);
+        return $detail;
+    }
+
     if ($plugin === '' || $id === ''
         || !in_array($plugin, $_PLUGINS, true)
         || !function_exists('plugin_getiteminfo_' . $plugin)
     ) {
-        return '';
+        return $detail;
     }
 
-    $value = PLG_getItemInfo($plugin, $id, 'excerpt', (int) $uid);
-
-    if (is_string($value) || is_numeric($value)) {
-        return (string) $value;
-    }
+    $value = PLG_getItemInfo($plugin, $id, 'excerpt,image', (int) $uid);
 
     if (is_array($value)) {
-        if (isset($value['excerpt'])) {
-            return (string) $value['excerpt'];
+        if (isset($value['excerpt']) || isset($value['image'])) {
+            if (isset($value['excerpt'])) {
+                $detail['excerpt'] = (string) $value['excerpt'];
+            }
+            if (isset($value['image'])) {
+                $detail['image'] = (string) $value['image'];
+            }
+            return $detail;
         }
 
-        if (count($value) === 1) {
-            $first = reset($value);
-            if (is_string($first) || is_numeric($first)) {
-                return (string) $first;
-            }
+        $values = array_values($value);
+        if (isset($values[0]) && (is_string($values[0]) || is_numeric($values[0]))) {
+            $detail['excerpt'] = (string) $values[0];
         }
+        if (isset($values[1]) && (is_string($values[1]) || is_numeric($values[1]))) {
+            $detail['image'] = (string) $values[1];
+        }
+        return $detail;
     }
 
-    return '';
+    if (is_string($value) || is_numeric($value)) {
+        $detail['excerpt'] = (string) $value;
+    }
+
+    return $detail;
 }
 
 function HELLO_getDigestCandidates($sources, $since, $uid = 0)
@@ -1516,11 +1565,17 @@ function HELLO_emailUserTopics($online=true, $test_mode=false, $options=array())
                 );
                 foreach ($candidates as $candidate) {
                     if ((string) $candidate['id'] === (string) $selected_id) {
-                        $candidate['excerpt'] = HELLO_getPluginDigestExcerpt(
+                        $detail = HELLO_getPluginDigestDetail(
                             $selected_source,
                             $selected_id,
                             (int) $U['uuid']
                         );
+                        $candidate['excerpt'] = isset($detail['excerpt'])
+                            ? (string) $detail['excerpt']
+                            : '';
+                        if (!empty($detail['image'])) {
+                            $candidate['image'] = (string) $detail['image'];
+                        }
                         $extra_items[] = $candidate;
                         break;
                     }
