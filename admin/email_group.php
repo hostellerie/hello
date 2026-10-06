@@ -391,7 +391,7 @@ function send_messages($vars)
         exit;
 	} 
 	if ($failures > 0) {
-	    $retval .= 'Oups... There was ' . $failures . ' failure(s)';
+	    $retval .= sprintf($LANG_HELLO01['send_failures'], $failures);
 	}
   
     $retval .= COM_endBlock ();
