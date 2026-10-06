@@ -1114,7 +1114,9 @@ function HELLO_getPluginDigestCandidates($plugin, $since, $uid = 0)
         return array();
     }
 
-    $what = 'id,title,url,excerpt,date-created,date-modified,type,subtype,image';
+    // Collection discovery intentionally requests metadata only. Detailed
+    // editorial text is fetched for selected items after permission filtering.
+    $what = 'id,title,url,date-created,date-modified,type,subtype,image';
     $items = PLG_getItemInfo($plugin, '*', $what, (int) $uid, array(
         'since' => $since,
         'limit' => 200,
@@ -1184,6 +1186,49 @@ function HELLO_getPluginDigestCandidates($plugin, $since, $uid = 0)
 /**
  * Return candidates for the currently supported digest sources.
  */
+/**
+ * Return the editorial excerpt for one provider item.
+ *
+ * Collection discovery stays metadata-only. Detailed text is requested only
+ * after an item has been selected and the owning provider has approved access
+ * for the target user.
+ */
+function HELLO_getPluginDigestExcerpt($plugin, $id, $uid = 0)
+{
+    global $_PLUGINS;
+
+    $plugin = strtolower(trim((string) $plugin));
+    $id = trim((string) $id);
+
+    if ($plugin === '' || $id === ''
+        || !in_array($plugin, $_PLUGINS, true)
+        || !function_exists('plugin_getiteminfo_' . $plugin)
+    ) {
+        return '';
+    }
+
+    $value = PLG_getItemInfo($plugin, $id, 'excerpt', (int) $uid);
+
+    if (is_string($value) || is_numeric($value)) {
+        return (string) $value;
+    }
+
+    if (is_array($value)) {
+        if (isset($value['excerpt'])) {
+            return (string) $value['excerpt'];
+        }
+
+        if (count($value) === 1) {
+            $first = reset($value);
+            if (is_string($first) || is_numeric($first)) {
+                return (string) $first;
+            }
+        }
+    }
+
+    return '';
+}
+
 function HELLO_getDigestCandidates($sources, $since, $uid = 0)
 {
     if (!is_array($sources) || empty($sources)) {
@@ -1388,6 +1433,11 @@ function HELLO_emailUserTopics($online=true, $test_mode=false, $options=array())
                 );
                 foreach ($candidates as $candidate) {
                     if ((string) $candidate['id'] === (string) $selected_id) {
+                        $candidate['excerpt'] = HELLO_getPluginDigestExcerpt(
+                            $selected_source,
+                            $selected_id,
+                            (int) $U['uuid']
+                        );
                         $extra_items[] = $candidate;
                         break;
                     }
