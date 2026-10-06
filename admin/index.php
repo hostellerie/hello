@@ -103,6 +103,8 @@ function HELLO_send_digest()
 {
     global $_CONF, $_TABLES, $LANG_HELLO01, $PHP_SELF, $_USER;
 
+    $digest_item_limit = HELLO_getDigestItemLimit();
+
     $display = '';
 
     if ($_CONF['emailstories'] != 1) {
@@ -180,6 +182,11 @@ function HELLO_send_digest()
     if ((isset($_POST['sendit']) || isset($_POST['testit'])) && SEC_checkToken()) {
         if (empty($selected)) {
             $display .= COM_showMessageText($LANG_HELLO01['digest_select_one'], 'warning');
+        } elseif (count($selected) > $digest_item_limit) {
+            $display .= COM_showMessageText(
+                sprintf($LANG_HELLO01['digest_limit_exceeded'], $digest_item_limit),
+                'warning'
+            );
         } elseif (isset($_POST['testit'])) {
             $display .= '<p style="color:green; font-weight:bold;">' . $LANG_HELLO01['test_sent'] . '</p>' . LB;
             $display .= HELLO_emailUserTopics(true, true, $options);
@@ -235,6 +242,10 @@ function HELLO_send_digest()
     $display .= '</p>';
 
     $display .= '<h4 style="margin-top:22px;">' . $LANG_HELLO01['digest_articles_label'] . '</h4>';
+    $display .= '<p style="margin:0 0 10px 0; color:#666;">'
+        . sprintf($LANG_HELLO01['digest_limit_hint'], $digest_item_limit)
+        . ' <strong><span id="digest-selected-count">0</span> / '
+        . (int) $digest_item_limit . '</strong></p>';
     if (empty($stories)) {
         $display .= '<p>' . $LANG_HELLO01['no_stories'] . '</p>';
         $display .= '<p style="color:#666;">' . $LANG_HELLO01['digest_refresh_hint'] . '</p>';
@@ -244,7 +255,7 @@ function HELLO_send_digest()
             $item_key = (string) $story['source'] . ':' . (string) $story['id'];
             $checked = empty($_POST) || in_array($item_key, $selected, true) ? ' checked' : '';
             $display .= '<label style="display:block; padding:7px 0; border-bottom:1px solid #eee;">';
-            $display .= '<input type="checkbox" name="digest_item[]" value="'
+            $display .= '<input class="hello-digest-item" type="checkbox" name="digest_item[]" value="'
                 . htmlspecialchars($item_key, ENT_QUOTES, 'UTF-8') . '"' . $checked . ' /> ';
             $display .= '<strong>' . htmlspecialchars($story['title'], ENT_QUOTES, 'UTF-8') . '</strong>';
             $display .= ' <small>(' . htmlspecialchars($story['source_label'], ENT_QUOTES, 'UTF-8')
@@ -263,7 +274,21 @@ function HELLO_send_digest()
     $display .= '<input type="hidden" name="' . CSRF_TOKEN . '" value="' . SEC_createToken() . '" />';
     $display .= '</form>';
 
-    if (isset($_POST['previewit']) && SEC_checkToken() && !empty($selected)) {
+    $display .= '<script>(function(){'
+        . 'var limit=' . (int) $digest_item_limit . ';'
+        . 'var boxes=document.querySelectorAll(".hello-digest-item");'
+        . 'var counter=document.getElementById("digest-selected-count");'
+        . 'function update(){'
+        . 'var count=0; for(var i=0;i<boxes.length;i++){if(boxes[i].checked){count++;}}'
+        . 'if(counter){counter.textContent=count;}'
+        . 'for(var j=0;j<boxes.length;j++){boxes[j].disabled=!boxes[j].checked&&count>=limit;}'
+        . '}'
+        . 'for(var k=0;k<boxes.length;k++){boxes[k].addEventListener("change",update);}'
+        . 'update();'
+        . '})();</script>';
+
+    if (isset($_POST['previewit']) && SEC_checkToken() && !empty($selected)
+        && count($selected) <= $digest_item_limit) {
         $display .= '<div style="max-width:900px; margin-top:20px; padding:18px; border:1px solid #bbb; background:#fafafa;">';
         $display .= '<h4>' . $LANG_HELLO01['digest_preview_title'] . '</h4>';
         $display .= '<p><strong>' . htmlspecialchars($subject, ENT_QUOTES, 'UTF-8') . '</strong></p>';
